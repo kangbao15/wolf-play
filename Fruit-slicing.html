@@ -5,10 +5,21 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Fruit Slicing</title>
 <style>
+  :root{
+    --bg:#160f1f;
+    --panel:#231530;
+    --panel2:#2e1c3f;
+    --text:#f3ecf7;
+    --muted:#b09cc2;
+    --accent:#ff2fd6;
+    --accent2:#9d4edd;
+    --accent-dim:#3a1950;
+    --canvas-bg:#201030;
+  }
   *{box-sizing:border-box;margin:0;padding:0;}
   body{
-    background:#1a1410;
-    color:#f3ece2;
+    background:var(--bg);
+    color:var(--text);
     font-family:"Segoe UI",system-ui,sans-serif;
     display:flex;
     align-items:center;
@@ -18,9 +29,13 @@
     gap:14px;
     user-select:none;
   }
-  h1{font-size:1.5rem;letter-spacing:.5px;}
+  h1{
+    font-size:1.5rem;letter-spacing:.5px;
+    background:linear-gradient(90deg,var(--accent),var(--accent2));
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
   .panel{
-    background:#241c17;
+    background:var(--panel);
     border-radius:16px;
     padding:28px 34px;
     width:420px;
@@ -28,31 +43,32 @@
     flex-direction:column;
     gap:18px;
   }
-  .row-label{font-size:0.85rem;color:#b2a397;margin-bottom:6px;}
+  .row-label{font-size:0.85rem;color:var(--muted);margin-bottom:6px;}
   .choice-group{display:flex;gap:8px;}
   .choice-btn{
     flex:1;
-    background:#332820;
+    background:var(--panel2);
     border:2px solid transparent;
-    color:#f3ece2;
+    color:var(--text);
     padding:10px 6px;
     border-radius:10px;
     cursor:pointer;
     font-size:0.85rem;
   }
-  .choice-btn.active{border-color:#ff8a3d;background:#4a3420;color:#ffb577;}
+  .choice-btn.active{border-color:var(--accent);background:var(--accent-dim);color:#ffa8f0;box-shadow:0 0 12px -3px var(--accent);}
   .start-btn{
     margin-top:6px;
-    background:#ff8a3d;
-    color:#241c17;
+    background:linear-gradient(90deg,var(--accent),var(--accent2));
+    color:#1a0f26;
     border:none;
     padding:12px;
     border-radius:10px;
     font-weight:700;
     font-size:0.95rem;
     cursor:pointer;
+    box-shadow:0 0 16px -4px var(--accent);
   }
-  .controls-hint{font-size:0.78rem;color:#b2a397;max-width:420px;text-align:center;}
+  .controls-hint{font-size:0.78rem;color:var(--muted);max-width:420px;text-align:center;}
 
   #gameWrap{display:none;flex-direction:column;align-items:center;gap:10px;}
   #hud{
@@ -62,25 +78,25 @@
     width:800px;
     font-size:0.95rem;
   }
-  #scoreBox{font-weight:700;font-size:1.1rem;color:#ffb577;}
-  #livesBox{display:flex;gap:6px;font-size:1.1rem;}
+  #scoreBox{font-weight:700;font-size:1.1rem;color:#ffa8f0;}
+  #timerBox{font-weight:700;font-size:1.1rem;color:var(--text);}
   #pauseBtn{
-    background:#332820;
-    color:#f3ece2;
+    background:var(--panel2);
+    color:var(--text);
     border:none;
     padding:6px 14px;
     border-radius:8px;
     cursor:pointer;
     font-size:0.85rem;
   }
-  #pauseBtn:hover{background:#4a3420;}
+  #pauseBtn:hover{background:var(--accent-dim);}
   #canvasHolder{position:relative;}
-  canvas{background:#2a2019;border-radius:12px;display:block;cursor:crosshair;}
+  canvas{background:var(--canvas-bg);border-radius:12px;display:block;cursor:crosshair;}
 
   #comboFlash{
     position:absolute; top:40%; left:50%; transform:translate(-50%,-50%);
-    font-size:1.8rem; font-weight:800; color:#ffd36b;
-    opacity:0; pointer-events:none; text-shadow:0 2px 8px rgba(0,0,0,.5);
+    font-size:1.8rem; font-weight:800; color:#ff6bf0;
+    opacity:0; pointer-events:none; text-shadow:0 0 14px var(--accent);
   }
 
   #pauseOverlay, #endScreen{
@@ -93,16 +109,16 @@
   }
   #pauseOverlay{
     position:absolute; inset:0;
-    background:rgba(10,8,6,0.75);
+    background:rgba(10,6,16,0.8);
     border-radius:12px;
   }
   #endScreen{
-    background:#241c17;
+    background:var(--panel);
     padding:30px 40px;
     border-radius:16px;
     gap:10px;
   }
-  #endScreen h2{color:#ff8a3d;}
+  #endScreen h2{color:var(--accent);}
 </style>
 </head>
 <body>
@@ -434,10 +450,10 @@ function drawBomb(o){
 }
 
 function draw(){
-  ctx.fillStyle = "#2a2019";
+  ctx.fillStyle = "#201030";
   ctx.fillRect(0,0,canvas.width,canvas.height);
   // subtle board texture
-  ctx.strokeStyle = "rgba(255,255,255,0.03)";
+  ctx.strokeStyle = "rgba(255,120,240,0.04)";
   for(let i=0;i<canvas.width;i+=40){
     ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,canvas.height); ctx.stroke();
   }
