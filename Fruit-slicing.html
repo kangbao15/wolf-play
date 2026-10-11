@@ -1,1 +1,535 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fruit Slicing</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{
+    background:#1a1410;
+    color:#f3ece2;
+    font-family:"Segoe UI",system-ui,sans-serif;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    min-height:100vh;
+    flex-direction:column;
+    gap:14px;
+    user-select:none;
+  }
+  h1{font-size:1.5rem;letter-spacing:.5px;}
+  .panel{
+    background:#241c17;
+    border-radius:16px;
+    padding:28px 34px;
+    width:420px;
+    display:flex;
+    flex-direction:column;
+    gap:18px;
+  }
+  .row-label{font-size:0.85rem;color:#b2a397;margin-bottom:6px;}
+  .choice-group{display:flex;gap:8px;}
+  .choice-btn{
+    flex:1;
+    background:#332820;
+    border:2px solid transparent;
+    color:#f3ece2;
+    padding:10px 6px;
+    border-radius:10px;
+    cursor:pointer;
+    font-size:0.85rem;
+  }
+  .choice-btn.active{border-color:#ff8a3d;background:#4a3420;color:#ffb577;}
+  .start-btn{
+    margin-top:6px;
+    background:#ff8a3d;
+    color:#241c17;
+    border:none;
+    padding:12px;
+    border-radius:10px;
+    font-weight:700;
+    font-size:0.95rem;
+    cursor:pointer;
+  }
+  .controls-hint{font-size:0.78rem;color:#b2a397;max-width:420px;text-align:center;}
 
+  #gameWrap{display:none;flex-direction:column;align-items:center;gap:10px;}
+  #hud{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    width:800px;
+    font-size:0.95rem;
+  }
+  #scoreBox{font-weight:700;font-size:1.1rem;color:#ffb577;}
+  #livesBox{display:flex;gap:6px;font-size:1.1rem;}
+  #pauseBtn{
+    background:#332820;
+    color:#f3ece2;
+    border:none;
+    padding:6px 14px;
+    border-radius:8px;
+    cursor:pointer;
+    font-size:0.85rem;
+  }
+  #pauseBtn:hover{background:#4a3420;}
+  #canvasHolder{position:relative;}
+  canvas{background:#2a2019;border-radius:12px;display:block;cursor:crosshair;}
+
+  #comboFlash{
+    position:absolute; top:40%; left:50%; transform:translate(-50%,-50%);
+    font-size:1.8rem; font-weight:800; color:#ffd36b;
+    opacity:0; pointer-events:none; text-shadow:0 2px 8px rgba(0,0,0,.5);
+  }
+
+  #pauseOverlay, #endScreen{
+    display:none;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:14px;
+    color:#fff;
+  }
+  #pauseOverlay{
+    position:absolute; inset:0;
+    background:rgba(10,8,6,0.75);
+    border-radius:12px;
+  }
+  #endScreen{
+    background:#241c17;
+    padding:30px 40px;
+    border-radius:16px;
+    gap:10px;
+  }
+  #endScreen h2{color:#ff8a3d;}
+</style>
+</head>
+<body>
+
+<h1>Fruit Slicing</h1>
+
+<div class="panel" id="setup">
+  <div>
+    <p class="row-label">Độ khó</p>
+    <div class="choice-group" id="diffGroup">
+      <button class="choice-btn" data-val="easy">Dễ</button>
+      <button class="choice-btn active" data-val="normal">Thường</button>
+      <button class="choice-btn" data-val="hard">Khó</button>
+    </div>
+  </div>
+  <button class="start-btn" id="startBtn">Bắt đầu (200 giây)</button>
+  <p class="controls-hint">Rê chuột (hoặc vuốt tay trên cảm ứng) qua trái cây để chém.<br>
+  Né quả bom — chém trúng bom bị trừ điểm. Chơi hết 200 giây là xong ván. Esc để tạm dừng.</p>
+</div>
+
+<div id="gameWrap">
+  <div id="hud">
+    <div id="scoreBox">Điểm: 0</div>
+    <div id="timerBox">200</div>
+    <button id="pauseBtn">Tạm dừng (Esc)</button>
+  </div>
+  <div id="canvasHolder">
+    <canvas id="canvas" width="800" height="520"></canvas>
+    <div id="comboFlash"></div>
+    <div id="pauseOverlay">
+      <h3 style="font-size:1.3rem;">Tạm dừng</h3>
+      <button class="start-btn" id="resumeBtn">Tiếp tục</button>
+      <button class="choice-btn" id="quitBtn" style="width:140px;">Thoát ra menu</button>
+    </div>
+  </div>
+</div>
+
+<div id="endScreen">
+  <h2 id="endTitle">Hết mạng!</h2>
+  <p id="endScore"></p>
+  <button class="start-btn" id="restartBtn">Chơi lại</button>
+</div>
+
+<script>
+const setupPanel = document.getElementById("setup");
+const gameWrap = document.getElementById("gameWrap");
+const endScreen = document.getElementById("endScreen");
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+const comboFlash = document.getElementById("comboFlash");
+
+let difficulty = "normal";
+document.getElementById("diffGroup").addEventListener("click", e => {
+  if(!e.target.dataset.val) return;
+  difficulty = e.target.dataset.val;
+  [...e.currentTarget.children].forEach(b => b.classList.toggle("active", b===e.target));
+});
+
+const DIFF = {
+  easy:   { spawnMs: 1000, speedMul: 0.85, bombChance: 0.08 },
+  normal: { spawnMs: 750,  speedMul: 1.0,  bombChance: 0.14 },
+  hard:   { spawnMs: 550,  speedMul: 1.2,  bombChance: 0.2 },
+};
+
+// ---- original fruit designs (not based on any existing game's art) ----
+const FRUITS = [
+  { key:"melon",  r:34, base:"#4caf50", inner:"#ffe3ea", seedColor:"#8b2b3a" },
+  { key:"orange", r:28, base:"#ff8a24", inner:"#ffd27a", seedColor:"#e06b00" },
+  { key:"plum",   r:24, base:"#7b4ea8", inner:"#ffd9a0", seedColor:"#5a3680" },
+  { key:"lime",   r:22, base:"#9ccc3f", inner:"#e9f7c7", seedColor:"#6b9a1f" },
+  { key:"mango",  r:26, base:"#ffcb3d", inner:"#ffa94d", seedColor:"#c98a00" },
+];
+
+// ---- sound (procedural, no audio files) ----
+let audioCtx = null;
+function ensureAudio(){
+  if(!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+  if(audioCtx.state==="suspended") audioCtx.resume();
+}
+function tone(freq,dur,type="sine",vol=0.12,delay=0){
+  if(!audioCtx) return;
+  const osc=audioCtx.createOscillator(), gain=audioCtx.createGain();
+  osc.type=type; osc.frequency.value=freq;
+  const t0=audioCtx.currentTime+delay;
+  gain.gain.setValueAtTime(vol,t0);
+  gain.gain.exponentialRampToValueAtTime(0.001,t0+dur);
+  osc.connect(gain); gain.connect(audioCtx.destination);
+  osc.start(t0); osc.stop(t0+dur);
+}
+function noiseBurst(dur,vol=0.18){
+  if(!audioCtx) return;
+  const bufferSize = audioCtx.sampleRate*dur;
+  const buffer = audioCtx.createBuffer(1,bufferSize,audioCtx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for(let i=0;i<bufferSize;i++) data[i]=(Math.random()*2-1)*(1-i/bufferSize);
+  const src = audioCtx.createBufferSource();
+  src.buffer = buffer;
+  const gain = audioCtx.createGain();
+  gain.gain.value = vol;
+  src.connect(gain); gain.connect(audioCtx.destination);
+  src.start();
+}
+const sfx = {
+  slice: () => { tone(900,0.05,"triangle",0.08); tone(500,0.06,"triangle",0.07,0.02); },
+  splat: () => noiseBurst(0.12,0.1),
+  bomb:  () => { noiseBurst(0.3,0.3); tone(90,0.35,"sawtooth",0.2); },
+  combo: () => { tone(660,0.07,"square",0.1); tone(880,0.07,"square",0.1,0.07); tone(1100,0.09,"square",0.1,0.14); },
+  lifeLost: () => tone(200,0.2,"sawtooth",0.15),
+  start: () => { tone(500,0.08,"triangle",0.1); tone(750,0.08,"triangle",0.1,0.08); },
+  over:  () => { tone(400,0.18,"sawtooth",0.12); tone(260,0.25,"sawtooth",0.12,0.16); },
+  pause: () => tone(320,0.08,"sine",0.1),
+  resume:() => tone(460,0.08,"sine",0.1),
+};
+
+// ---- state ----
+let objects = [];      // flying fruits/bombs
+let particles = [];    // splash bits
+let trail = [];        // pointer trail points
+let score = 0, combo = 0, comboTimer = 0;
+let timeLeft = 200, roundInterval = null;
+let running = false, paused = false;
+let spawnTimer = 0, lastFrame = 0;
+let swipeSliced = new Set(); // objects already sliced in current continuous swipe
+let flashAlpha = 0; // red flash when a bomb is hit
+
+function resetGame(){
+  objects = []; particles = []; trail = [];
+  score = 0; combo = 0; comboTimer = 0;
+  timeLeft = 200;
+  spawnTimer = 0;
+  flashAlpha = 0;
+  updateHud();
+}
+
+function updateHud(){
+  document.getElementById("scoreBox").textContent = "Điểm: " + score;
+  document.getElementById("timerBox").textContent = timeLeft;
+}
+
+function spawnObject(){
+  const d = DIFF[difficulty];
+  const isBomb = Math.random() < d.bombChance;
+  const x = 80 + Math.random()*(canvas.width-160);
+  const vy = -(13.0 + Math.random()*3.0) * d.speedMul;
+  const vx = (Math.random()-0.5) * 2.2;
+  if(isBomb){
+    objects.push({ type:"bomb", x, y:canvas.height+30, vx, vy, r:26, rot:0, vrot:(Math.random()-0.5)*0.1 });
+  } else {
+    const f = FRUITS[Math.floor(Math.random()*FRUITS.length)];
+    objects.push({ type:"fruit", fruit:f, x, y:canvas.height+30, vx, vy, r:f.r, rot:Math.random()*Math.PI, vrot:(Math.random()-0.5)*0.12, sliced:false });
+  }
+}
+
+function spawnSplash(x,y,color){
+  for(let i=0;i<14;i++){
+    const ang = Math.random()*Math.PI*2;
+    const spd = 2+Math.random()*4;
+    particles.push({ x,y, vx:Math.cos(ang)*spd, vy:Math.sin(ang)*spd-2, life:1, color, s:2+Math.random()*3 });
+  }
+}
+function spawnSmoke(x,y){
+  for(let i=0;i<18;i++){
+    const ang = Math.random()*Math.PI*2;
+    const spd = 1+Math.random()*3;
+    particles.push({ x,y, vx:Math.cos(ang)*spd, vy:Math.sin(ang)*spd-1, life:1, color:"rgba(80,80,80,0.8)", s:4+Math.random()*5, smoke:true });
+  }
+}
+
+// ---- pointer / slicing ----
+function canvasPos(e){
+  const rect = canvas.getBoundingClientRect();
+  const cx = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
+  const cy = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
+  return { x: cx * (canvas.width/rect.width), y: cy * (canvas.height/rect.height) };
+}
+let pointerDown = false;
+function pointerStart(e){
+  if(!running || paused) return;
+  pointerDown = true;
+  swipeSliced.clear();
+  const p = canvasPos(e);
+  trail.push({...p, t:performance.now()});
+}
+function pointerMove(e){
+  if(!running || paused || !pointerDown) return;
+  const p = canvasPos(e);
+  const prev = trail[trail.length-1];
+  trail.push({...p, t:performance.now()});
+  if(trail.length>14) trail.shift();
+  if(prev) checkSlice(prev, p);
+}
+function pointerEnd(){ pointerDown = false; }
+
+canvas.addEventListener("mousedown", pointerStart);
+canvas.addEventListener("mousemove", pointerMove);
+window.addEventListener("mouseup", pointerEnd);
+canvas.addEventListener("touchstart", e=>{pointerStart(e); e.preventDefault();}, {passive:false});
+canvas.addEventListener("touchmove", e=>{pointerMove(e); e.preventDefault();}, {passive:false});
+canvas.addEventListener("touchend", pointerEnd);
+
+function distToSegment(px,py, ax,ay, bx,by){
+  const dx=bx-ax, dy=by-ay;
+  const len2 = dx*dx+dy*dy;
+  let t = len2===0 ? 0 : ((px-ax)*dx+(py-ay)*dy)/len2;
+  t = Math.max(0,Math.min(1,t));
+  const cx=ax+t*dx, cy=ay+t*dy;
+  return Math.hypot(px-cx, py-cy);
+}
+
+function checkSlice(p1, p2){
+  objects.forEach(o => {
+    if(o.sliced || swipeSliced.has(o)) return;
+    const d = distToSegment(o.x,o.y, p1.x,p1.y, p2.x,p2.y);
+    if(d < o.r){
+      swipeSliced.add(o);
+      sliceObject(o);
+    }
+  });
+}
+
+function sliceObject(o){
+  if(o.type==="bomb"){
+    o.sliced = true;
+    score = Math.max(0, score-15);
+    combo = 0;
+    flashAlpha = 0.5;
+    sfx.bomb();
+    spawnSmoke(o.x,o.y);
+    updateHud();
+    return;
+  }
+  o.sliced = true;
+  score += 10 + combo*2;
+  combo++;
+  comboTimer = 1200;
+  if(combo>=3){
+    comboFlash.textContent = combo+"x COMBO!";
+    comboFlash.style.opacity = 1;
+    comboFlash.style.transform = "translate(-50%,-60%)";
+    setTimeout(()=>{ comboFlash.style.opacity=0; comboFlash.style.transform="translate(-50%,-50%)"; }, 350);
+    sfx.combo();
+  } else {
+    sfx.slice();
+  }
+  sfx.splat();
+  spawnSplash(o.x,o.y,o.fruit.base);
+  updateHud();
+}
+
+function triggerGameOver(){
+  running = false;
+  paused = false;
+  clearInterval(roundInterval);
+  gameWrap.style.display = "none";
+  endScreen.style.display = "flex";
+  document.getElementById("endTitle").textContent = "Hết giờ!";
+  document.getElementById("endScore").textContent = "Điểm cuối: "+score;
+  sfx.over();
+}
+
+// ---- update / draw ----
+function update(dt){
+  const d = DIFF[difficulty];
+  spawnTimer -= dt;
+  if(spawnTimer<=0){
+    spawnObject();
+    if(Math.random()<0.25) spawnObject();
+    spawnTimer = d.spawnMs;
+  }
+
+  objects.forEach(o => {
+    o.vy += 0.018*dt;
+    o.x += o.vx*dt*0.06;
+    o.y += o.vy*dt*0.06;
+    o.rot += o.vrot*dt*0.06;
+  });
+
+  // missed fruits (fell past bottom) just vanish — no lives system, endless play
+  objects = objects.filter(o => !o.sliced && o.y <= canvas.height+60);
+
+  particles.forEach(p => {
+    p.x += p.vx*dt*0.06; p.y += p.vy*dt*0.06;
+    p.vy += 0.01*dt;
+    p.life -= dt*0.0016;
+  });
+  particles = particles.filter(p => p.life>0);
+
+  if(comboTimer>0){ comboTimer -= dt; if(comboTimer<=0) combo = 0; }
+  if(flashAlpha>0) flashAlpha = Math.max(0, flashAlpha - dt*0.002);
+}
+
+function drawFruit(o){
+  ctx.save();
+  ctx.translate(o.x,o.y);
+  ctx.rotate(o.rot);
+  const f = o.fruit;
+  ctx.beginPath();
+  ctx.arc(0,0,o.r,0,Math.PI*2);
+  ctx.fillStyle = f.base;
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(-o.r*0.3,-o.r*0.3,o.r*0.35,0,Math.PI*2);
+  ctx.fillStyle = "rgba(255,255,255,0.25)";
+  ctx.fill();
+  ctx.restore();
+}
+function drawBomb(o){
+  ctx.save();
+  ctx.translate(o.x,o.y);
+  ctx.rotate(o.rot);
+  ctx.beginPath();
+  ctx.arc(0,0,o.r,0,Math.PI*2);
+  ctx.fillStyle = "#1c1c1c";
+  ctx.fill();
+  ctx.strokeStyle = "#444";
+  ctx.lineWidth = 3;
+  ctx.stroke();
+  ctx.strokeStyle = "#c97a2b";
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(o.r*0.3, -o.r*0.8);
+  ctx.quadraticCurveTo(o.r*0.7, -o.r*1.3, o.r*0.9, -o.r*1.6);
+  ctx.stroke();
+  ctx.fillStyle = "#ffcf5c";
+  ctx.beginPath();
+  ctx.arc(o.r*0.9, -o.r*1.6, 4, 0, Math.PI*2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function draw(){
+  ctx.fillStyle = "#2a2019";
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+  // subtle board texture
+  ctx.strokeStyle = "rgba(255,255,255,0.03)";
+  for(let i=0;i<canvas.width;i+=40){
+    ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,canvas.height); ctx.stroke();
+  }
+
+  objects.forEach(o => o.type==="bomb" ? drawBomb(o) : drawFruit(o));
+
+  particles.forEach(p => {
+    ctx.globalAlpha = Math.max(p.life,0);
+    ctx.fillStyle = p.color;
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.s,0,Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 1;
+  });
+
+  if(trail.length>1){
+    ctx.beginPath();
+    ctx.moveTo(trail[0].x, trail[0].y);
+    for(let i=1;i<trail.length;i++) ctx.lineTo(trail[i].x, trail[i].y);
+    ctx.strokeStyle = "rgba(255,255,255,0.6)";
+    ctx.lineWidth = 4;
+    ctx.lineCap = "round";
+    ctx.stroke();
+  }
+  const now = performance.now();
+  trail = trail.filter(p => now-p.t < 150);
+
+  if(flashAlpha>0){
+    ctx.fillStyle = `rgba(200,30,20,${flashAlpha})`;
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+  }
+}
+
+function loop(ts){
+  if(!running || paused) return;
+  const dt = lastFrame ? ts-lastFrame : 16;
+  lastFrame = ts;
+  update(dt);
+  draw();
+  requestAnimationFrame(loop);
+}
+
+// ---- pause / quit / start ----
+function togglePause(){
+  if(!running) return;
+  paused = !paused;
+  document.getElementById("pauseOverlay").style.display = paused ? "flex" : "none";
+  document.getElementById("pauseBtn").textContent = paused ? "Tiếp tục (Esc)" : "Tạm dừng (Esc)";
+  sfx[paused?"pause":"resume"]();
+  if(!paused){ lastFrame = 0; requestAnimationFrame(loop); }
+}
+function startRoundTimer(){
+  clearInterval(roundInterval);
+  roundInterval = setInterval(() => {
+    if(paused || !running) return;
+    timeLeft--;
+    updateHud();
+    if(timeLeft<=0) triggerGameOver();
+  }, 1000);
+}
+window.addEventListener("keydown", e => {
+  if(e.key==="Escape") togglePause();
+});
+document.getElementById("pauseBtn").addEventListener("click", togglePause);
+document.getElementById("resumeBtn").addEventListener("click", togglePause);
+
+function quitToMenu(){
+  running = false; paused = false;
+  clearInterval(roundInterval);
+  document.getElementById("pauseOverlay").style.display = "none";
+  gameWrap.style.display = "none";
+  endScreen.style.display = "none";
+  setupPanel.style.display = "flex";
+}
+document.getElementById("quitBtn").addEventListener("click", quitToMenu);
+
+document.getElementById("startBtn").addEventListener("click", () => {
+  ensureAudio();
+  sfx.start();
+  setupPanel.style.display = "none";
+  gameWrap.style.display = "flex";
+  endScreen.style.display = "none";
+  document.getElementById("pauseOverlay").style.display = "none";
+  document.getElementById("pauseBtn").textContent = "Tạm dừng (Esc)";
+  resetGame();
+  running = true; paused = false; lastFrame = 0;
+  requestAnimationFrame(loop);
+  startRoundTimer();
+});
+document.getElementById("restartBtn").addEventListener("click", () => {
+  endScreen.style.display = "none";
+  setupPanel.style.display = "flex";
+});
+</script>
+
+</body>
+</html>
