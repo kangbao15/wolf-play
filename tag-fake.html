@@ -1,1 +1,662 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tag Fake</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{
+    background:#111;
+    color:#eee;
+    font-family:"Segoe UI",system-ui,sans-serif;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    min-height:100vh;
+    flex-direction:column;
+    gap:14px;
+  }
+  h1{font-size:1.5rem;letter-spacing:.5px;}
+  .panel{
+    background:#1d1d20;
+    border-radius:16px;
+    padding:28px 34px;
+    width:420px;
+    display:flex;
+    flex-direction:column;
+    gap:18px;
+  }
+  .row-label{font-size:0.85rem;color:#9a999e;margin-bottom:6px;}
+  .choice-group{display:flex;gap:8px;}
+  .choice-btn{
+    flex:1;
+    background:#2c2c30;
+    border:2px solid transparent;
+    color:#eee;
+    padding:10px 6px;
+    border-radius:10px;
+    cursor:pointer;
+    font-size:0.85rem;
+  }
+  .choice-btn.active{border-color:#ff9f43;background:#3a2f22;color:#ff9f43;}
+  .start-btn{
+    margin-top:6px;
+    background:#ff9f43;
+    color:#1d1d20;
+    border:none;
+    padding:12px;
+    border-radius:10px;
+    font-weight:700;
+    font-size:0.95rem;
+    cursor:pointer;
+  }
+  .start-btn:disabled{opacity:0.5;cursor:default;}
 
+  #gameWrap{display:none;flex-direction:column;align-items:center;gap:10px;}
+  #hud{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    width:800px;
+    font-size:0.95rem;
+  }
+  #timer{font-weight:700;font-size:1.1rem;}
+  #buffHud{display:flex;gap:16px;}
+  .player-buffs{display:flex;gap:4px;align-items:center;font-size:0.8rem;}
+  #pauseBtn{
+    background:#2c2c30;
+    color:#eee;
+    border:none;
+    padding:6px 14px;
+    border-radius:8px;
+    cursor:pointer;
+    font-size:0.85rem;
+  }
+  #pauseBtn:hover{background:#3a3a40;}
+  #canvasHolder{position:relative;}
+  canvas{background:#222;border-radius:12px;display:block;}
+  #pauseOverlay{
+    display:none;
+    position:absolute;
+    inset:0;
+    background:rgba(10,10,12,0.72);
+    border-radius:12px;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:14px;
+    color:#fff;
+  }
+  #pauseOverlay h3{font-size:1.3rem;}
+
+  #endScreen{
+    display:none;
+    flex-direction:column;
+    align-items:center;
+    gap:10px;
+    background:#1d1d20;
+    padding:30px 40px;
+    border-radius:16px;
+  }
+  #endScreen h2{color:#ff9f43;}
+  .controls-hint{font-size:0.78rem;color:#9a999e;max-width:420px;text-align:center;}
+</style>
+</head>
+<body>
+
+<h1>Tag Fake</h1>
+
+<div class="panel" id="setup">
+  <div>
+    <p class="row-label">Số người chơi</p>
+    <div class="choice-group" id="playerCountGroup">
+      <button class="choice-btn active" data-val="2">2 người</button>
+      <button class="choice-btn" data-val="3">3 người</button>
+    </div>
+  </div>
+  <div>
+    <p class="row-label">Bản đồ</p>
+    <div class="choice-group" id="mapGroup">
+      <button class="choice-btn active" data-val="forest">Rừng đêm</button>
+      <button class="choice-btn" data-val="ice">Ice</button>
+      <button class="choice-btn" data-val="magma">Magma</button>
+    </div>
+  </div>
+  <button class="start-btn" id="startBtn">Bắt đầu (100 giây)</button>
+  <p class="controls-hint">P1: WASD &nbsp;·&nbsp; P2: phím mũi tên &nbsp;·&nbsp; P3: Numpad 8/4/5/6<br>
+  (tách xa nhau trên bàn phím để đỡ bị "ăn" phím khi bấm cùng lúc)<br>
+  Buff: tốc độ, xuyên vật cản, né nhỏ, tàng hình, super (cả 4) — hiệu lực 15s</p>
+</div>
+
+<div id="gameWrap">
+  <div id="hud">
+    <div id="buffHud"></div>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <div id="timer">100</div>
+      <button id="pauseBtn">Tạm dừng (Esc)</button>
+    </div>
+  </div>
+  <div id="canvasHolder">
+    <canvas id="canvas" width="800" height="520"></canvas>
+    <div id="pauseOverlay">
+      <h3>Tạm dừng</h3>
+      <button class="start-btn" id="resumeBtn">Tiếp tục</button>
+      <button class="choice-btn" id="quitBtn" style="width:140px;">Thoát ra menu</button>
+    </div>
+  </div>
+</div>
+
+<div id="endScreen">
+  <h2 id="endTitle"></h2>
+  <button class="start-btn" id="restartBtn">Chơi lại</button>
+</div>
+
+<script>
+const setupPanel = document.getElementById("setup");
+const gameWrap = document.getElementById("gameWrap");
+const endScreen = document.getElementById("endScreen");
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+
+let playerCount = 2;
+let mapTheme = "forest";
+
+document.getElementById("playerCountGroup").addEventListener("click", e => {
+  if(!e.target.dataset.val) return;
+  playerCount = parseInt(e.target.dataset.val);
+  [...e.currentTarget.children].forEach(b => b.classList.toggle("active", b === e.target));
+});
+document.getElementById("mapGroup").addEventListener("click", e => {
+  if(!e.target.dataset.val) return;
+  mapTheme = e.target.dataset.val;
+  [...e.currentTarget.children].forEach(b => b.classList.toggle("active", b === e.target));
+});
+
+// ---- map themes ----
+const THEMES = {
+  forest: { bg:"#132018", obstacle:"#2f4a35", accent:"#1c2e22" },
+  ice:    { bg:"#17262f", obstacle:"#aee4f2", accent:"#20394a" },
+  magma:  { bg:"#2a1410", obstacle:"#7a2e16", accent:"#3d1c12" },
+};
+
+function makeObstacles(theme){
+  // place obstacles on a loose grid with jitter so they stay spread out
+  // and never overlap each other, instead of pure random scatter.
+  const rand = (a,b) => a + Math.random()*(b-a);
+  const cols = 4, rows = 3;
+  const cellW = canvas.width/cols, cellH = canvas.height/rows;
+  const cells = [];
+  for(let r=0;r<rows;r++) for(let c=0;c<cols;c++) cells.push({r,c});
+  // skip the 4 corner cells so player start areas stay clear
+  const corners = new Set(["0,0","0,3","2,0","2,3"]);
+  const usable = cells.filter(cell => !corners.has(`${cell.r},${cell.c}`));
+  // shuffle and take 7
+  for(let i=usable.length-1;i>0;i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [usable[i],usable[j]] = [usable[j],usable[i]];
+  }
+  const chosen = usable.slice(0,7);
+
+  return chosen.map(cell => {
+    const w = rand(40,58), h = rand(40,58);
+    const cx = cell.c*cellW + cellW/2 + rand(-cellW*0.15, cellW*0.15);
+    const cy = cell.r*cellH + cellH/2 + rand(-cellH*0.15, cellH*0.15);
+    return { x: cx-w/2, y: cy-h/2, w, h };
+  });
+}
+
+// ---- buffs ----
+const BUFF_TYPES = ["speed","phase","small","invis","super"];
+const BUFF_LABEL = { speed:"⚡", phase:"🌀", small:"🔹", invis:"👻", super:"🌟" };
+const BUFF_DURATION = 15000;
+
+function applyBuffEffects(p){
+  p.speedMult = 1;
+  p.phase = false;
+  p.hitboxScale = 1;
+  p.opacity = 1;
+  const active = new Set(p.activeBuffs.map(b=>b.type));
+  if(active.has("super")){
+    p.speedMult = 1.6; p.phase = true; p.hitboxScale = 0.6; p.opacity = 0.35;
+    return;
+  }
+  if(active.has("speed")) p.speedMult = 1.6;
+  if(active.has("phase")) p.phase = true;
+  if(active.has("small")) p.hitboxScale = 0.6;
+  if(active.has("invis")) p.opacity = 0.35;
+}
+
+// ---- players ----
+const CONTROL_SETS = [
+  { up:"w", down:"s", left:"a", right:"d" },
+  { up:"arrowup", down:"arrowdown", left:"arrowleft", right:"arrowright" },
+  { up:"8", down:"5", left:"4", right:"6" },
+];
+const ALL_MOVE_KEYS = new Set(CONTROL_SETS.flatMap(c => Object.values(c)));
+const PLAYER_COLORS = ["#4da6ff", "#ff6b6b", "#ffd93d"];
+
+let players = [];
+let obstacles = [];
+let buffsOnMap = [];
+let keys = {};
+let timeLeft = 100;
+let timerInterval = null;
+let lastFrame = 0;
+let running = false;
+let paused = false;
+
+// ---- simple procedural sound effects (no audio files needed) ----
+let audioCtx = null;
+function ensureAudio(){
+  if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if(audioCtx.state === "suspended") audioCtx.resume();
+}
+function playTone(freq, duration, type="sine", vol=0.12, delay=0){
+  if(!audioCtx) return;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = type;
+  osc.frequency.value = freq;
+  const t0 = audioCtx.currentTime + delay;
+  gain.gain.setValueAtTime(vol, t0);
+  gain.gain.exponentialRampToValueAtTime(0.001, t0+duration);
+  osc.connect(gain); gain.connect(audioCtx.destination);
+  osc.start(t0); osc.stop(t0+duration);
+}
+const sfx = {
+  tag:    () => { playTone(220,0.08,"square",0.15); playTone(440,0.1,"square",0.12,0.06); },
+  buff:   () => { playTone(520,0.08,"triangle",0.12); playTone(780,0.1,"triangle",0.12,0.07); },
+  tick:   () => playTone(880,0.06,"sine",0.08),
+  pause:  () => playTone(300,0.08,"sine",0.1),
+  resume: () => playTone(460,0.08,"sine",0.1),
+  start:  () => { playTone(440,0.09,"triangle",0.12); playTone(660,0.09,"triangle",0.12,0.09); },
+  over:   () => { playTone(500,0.15,"sawtooth",0.1); playTone(340,0.2,"sawtooth",0.1,0.13); },
+};
+
+window.addEventListener("keydown", e => {
+  const k = e.key.toLowerCase();
+  if(k === "escape"){ togglePause(); return; }
+  keys[k] = true;
+  if(ALL_MOVE_KEYS.has(k)) e.preventDefault();
+});
+window.addEventListener("keyup", e => {
+  keys[e.key.toLowerCase()] = false;
+});
+
+function togglePause(){
+  if(!running) return;
+  paused = !paused;
+  document.getElementById("pauseOverlay").style.display = paused ? "flex" : "none";
+  document.getElementById("pauseBtn").textContent = paused ? "Tiếp tục (Esc)" : "Tạm dừng (Esc)";
+  sfx[paused ? "pause" : "resume"]();
+  if(!paused){ lastFrame = 0; requestAnimationFrame(loop); }
+}
+document.getElementById("pauseBtn").addEventListener("click", togglePause);
+document.getElementById("resumeBtn").addEventListener("click", togglePause);
+
+function quitToMenu(){
+  running = false;
+  paused = false;
+  clearInterval(timerInterval);
+  document.getElementById("pauseOverlay").style.display = "none";
+  gameWrap.style.display = "none";
+  endScreen.style.display = "none";
+  setupPanel.style.display = "flex";
+}
+document.getElementById("quitBtn").addEventListener("click", quitToMenu);
+
+function resetGame(){
+  obstacles = makeObstacles(mapTheme);
+  makeTexturePoints();
+  makeParticles(mapTheme);
+  const startPositions = [
+    {x:80,y:80}, {x:720,y:440}, {x:720,y:80}
+  ];
+  players = [];
+  for(let i=0;i<playerCount;i++){
+    players.push({
+      id:i,
+      name:"P"+(i+1),
+      color:PLAYER_COLORS[i],
+      x:startPositions[i].x, y:startPositions[i].y,
+      r:16,
+      controls:CONTROL_SETS[i],
+      tagged:false,
+      activeBuffs:[],
+      speedMult:1, phase:false, hitboxScale:1, opacity:1,
+      tagCooldown:0,
+    });
+  }
+  const taggerIndex = Math.floor(Math.random()*players.length);
+  players[taggerIndex].tagged = true;
+
+  buffsOnMap = [];
+  timeLeft = 100;
+  spawnBuff();
+}
+
+function spawnBuff(){
+  if(buffsOnMap.length >= 3) return;
+  const pool = Math.random() < 0.12 ? BUFF_TYPES : BUFF_TYPES.slice(0,4);
+  const type = pool[Math.floor(Math.random()*pool.length)];
+
+  const margin = 40;
+  let x, y, tries = 0, blocked = true;
+  while(blocked && tries < 20){
+    x = margin + Math.random()*(canvas.width - margin*2);
+    y = margin + Math.random()*(canvas.height - margin*2);
+    blocked = obstacles.some(o => circleRectOverlap(x, y, 20, o));
+    tries++;
+  }
+  buffsOnMap.push({ type, x, y });
+}
+
+function circleRectOverlap(cx,cy,r,rect){
+  const closestX = Math.max(rect.x, Math.min(cx, rect.x+rect.w));
+  const closestY = Math.max(rect.y, Math.min(cy, rect.y+rect.h));
+  const dx = cx-closestX, dy = cy-closestY;
+  return dx*dx+dy*dy < r*r;
+}
+
+// pushes (nx,ny) back out of any overlapping obstacle instead of just
+// freezing movement — this is what fixes clipping into a wall and
+// getting permanently stuck inside it.
+function resolveObstacles(r, nx, ny){
+  for(const o of obstacles){
+    const closestX = Math.max(o.x, Math.min(nx, o.x+o.w));
+    const closestY = Math.max(o.y, Math.min(ny, o.y+o.h));
+    let dx = nx-closestX, dy = ny-closestY;
+    let dist = Math.hypot(dx,dy);
+    if(dist < r){
+      if(dist < 0.001){
+        const left = nx-o.x, right = (o.x+o.w)-nx, top = ny-o.y, bottom = (o.y+o.h)-ny;
+        const min = Math.min(left,right,top,bottom);
+        if(min===left) nx = o.x - r;
+        else if(min===right) nx = o.x+o.w+r;
+        else if(min===top) ny = o.y - r;
+        else ny = o.y+o.h+r;
+      } else {
+        const push = r - dist;
+        nx += (dx/dist)*push;
+        ny += (dy/dist)*push;
+      }
+    }
+  }
+  return {nx, ny};
+}
+
+function update(dt){
+  updateParticles(dt, mapTheme);
+  const speedBase = 0.22;
+  players.forEach(p => {
+    let dx=0, dy=0;
+    if(keys[p.controls.up]) dy -= 1;
+    if(keys[p.controls.down]) dy += 1;
+    if(keys[p.controls.left]) dx -= 1;
+    if(keys[p.controls.right]) dx += 1;
+    if(dx||dy){
+      const len = Math.hypot(dx,dy);
+      dx/=len; dy/=len;
+    }
+    const sp = speedBase * p.speedMult * dt;
+    let nx = p.x + dx*sp;
+    let ny = p.y + dy*sp;
+
+    if(!p.phase){
+      const resolved = resolveObstacles(p.r*p.hitboxScale, nx, ny);
+      nx = resolved.nx; ny = resolved.ny;
+    }
+    p.x = Math.max(p.r, Math.min(canvas.width-p.r, nx));
+    p.y = Math.max(p.r, Math.min(canvas.height-p.r, ny));
+
+    // buff expiry
+    const now = performance.now();
+    p.activeBuffs = p.activeBuffs.filter(b => now < b.expires);
+    applyBuffEffects(p);
+    if(p.tagCooldown>0) p.tagCooldown -= dt;
+  });
+
+  // buff pickups
+  buffsOnMap = buffsOnMap.filter(b => {
+    for(const p of players){
+      const dist = Math.hypot(p.x-b.x, p.y-b.y);
+      if(dist < p.r+14){
+        p.activeBuffs.push({ type:b.type, expires: performance.now()+BUFF_DURATION });
+        sfx.buff();
+        return false;
+      }
+    }
+    return true;
+  });
+
+  // tag transfer
+  for(let i=0;i<players.length;i++){
+    for(let j=0;j<players.length;j++){
+      if(i===j) continue;
+      const a=players[i], b=players[j];
+      if(a.tagged && !b.tagged && a.tagCooldown<=0){
+        const dist = Math.hypot(a.x-b.x, a.y-b.y);
+        if(dist < (a.r*a.hitboxScale + b.r*b.hitboxScale)){
+          a.tagged = false;
+          b.tagged = true;
+          a.tagCooldown = 700;
+          b.tagCooldown = 700;
+          sfx.tag();
+        }
+      }
+    }
+  }
+}
+
+// fixed decorative texture points, seeded once per game so they don't flicker each frame
+let texturePoints = [];
+function makeTexturePoints(){
+  texturePoints = [];
+  for(let i=0;i<26;i++){
+    texturePoints.push({ x: Math.random()*canvas.width, y: Math.random()*canvas.height, s: 2+Math.random()*3 });
+  }
+}
+
+// ambient moving particles per theme — snow / embers / fireflies
+let particles = [];
+function makeParticles(theme){
+  particles = [];
+  const count = 30;
+  for(let i=0;i<count;i++){
+    if(theme === "ice"){
+      particles.push({ x:Math.random()*canvas.width, y:Math.random()*canvas.height, vx:-0.01+Math.random()*0.02, vy:0.02+Math.random()*0.03, s:1.5+Math.random()*2 });
+    } else if(theme === "magma"){
+      particles.push({ x:Math.random()*canvas.width, y:canvas.height+Math.random()*100, vx:-0.01+Math.random()*0.02, vy:-(0.025+Math.random()*0.03), s:1.5+Math.random()*2.5 });
+    } else {
+      particles.push({ x:Math.random()*canvas.width, y:Math.random()*canvas.height, vx:(Math.random()-0.5)*0.03, vy:(Math.random()-0.5)*0.03, s:1.5+Math.random()*2, phase:Math.random()*Math.PI*2 });
+    }
+  }
+}
+function updateParticles(dt, theme){
+  particles.forEach(p => {
+    p.x += p.vx*dt; p.y += p.vy*dt;
+    if(theme === "ice"){
+      if(p.y > canvas.height){ p.y = -5; p.x = Math.random()*canvas.width; }
+    } else if(theme === "magma"){
+      if(p.y < -5){ p.y = canvas.height+5; p.x = Math.random()*canvas.width; }
+    } else {
+      p.phase += dt*0.002;
+      if(p.x<0) p.x=canvas.width; if(p.x>canvas.width) p.x=0;
+      if(p.y<0) p.y=canvas.height; if(p.y>canvas.height) p.y=0;
+    }
+  });
+}
+function drawParticles(theme){
+  particles.forEach(p => {
+    if(theme === "ice"){
+      ctx.fillStyle = "rgba(230,248,255,0.85)";
+      ctx.beginPath(); ctx.arc(p.x,p.y,p.s,0,Math.PI*2); ctx.fill();
+    } else if(theme === "magma"){
+      ctx.fillStyle = "rgba(255,150,60,0.8)";
+      ctx.beginPath(); ctx.arc(p.x,p.y,p.s,0,Math.PI*2); ctx.fill();
+    } else {
+      const glow = 0.4 + 0.4*Math.sin(p.phase);
+      ctx.fillStyle = `rgba(210,255,150,${glow})`;
+      ctx.beginPath(); ctx.arc(p.x,p.y,p.s,0,Math.PI*2); ctx.fill();
+    }
+  });
+}
+
+function draw(){
+  const theme = THEMES[mapTheme];
+
+  // base background
+  const grad = ctx.createLinearGradient(0,0,0,canvas.height);
+  grad.addColorStop(0, theme.bg);
+  grad.addColorStop(1, theme.accent);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  // theme-specific ambient texture
+  texturePoints.forEach(pt => {
+    if(mapTheme === "forest"){
+      ctx.fillStyle = "rgba(90,160,110,0.18)";
+      ctx.beginPath(); ctx.arc(pt.x, pt.y, pt.s*2, 0, Math.PI*2); ctx.fill();
+    } else if(mapTheme === "ice"){
+      ctx.strokeStyle = "rgba(220,245,255,0.25)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(pt.x-pt.s*3, pt.y); ctx.lineTo(pt.x+pt.s*3, pt.y);
+      ctx.moveTo(pt.x, pt.y-pt.s*3); ctx.lineTo(pt.x, pt.y+pt.s*3);
+      ctx.stroke();
+    } else {
+      ctx.fillStyle = "rgba(255,140,60,0.15)";
+      ctx.beginPath(); ctx.arc(pt.x, pt.y, pt.s, 0, Math.PI*2); ctx.fill();
+    }
+  });
+
+  // obstacles, themed
+  obstacles.forEach(o => {
+    const cx = o.x+o.w/2, cy = o.y+o.h/2;
+    if(mapTheme === "forest"){
+      ctx.fillStyle = "#1c2e22";
+      ctx.beginPath(); ctx.ellipse(cx, cy+o.h*0.3, o.w*0.4, o.h*0.18, 0, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = theme.obstacle;
+      ctx.beginPath(); ctx.arc(cx, cy, Math.min(o.w,o.h)*0.5, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = "#3d6b47";
+      ctx.beginPath(); ctx.arc(cx-o.w*0.12, cy-o.h*0.12, Math.min(o.w,o.h)*0.22, 0, Math.PI*2); ctx.fill();
+    } else if(mapTheme === "ice"){
+      ctx.fillStyle = theme.obstacle;
+      ctx.beginPath();
+      ctx.moveTo(cx, o.y);
+      ctx.lineTo(o.x+o.w, cy);
+      ctx.lineTo(cx, o.y+o.h);
+      ctx.lineTo(o.x, cy);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = "#fff";
+      ctx.globalAlpha = 0.5;
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    } else {
+      ctx.fillStyle = theme.obstacle;
+      ctx.beginPath(); ctx.roundRect(o.x, o.y, o.w, o.h, 6); ctx.fill();
+      ctx.strokeStyle = "#ffb347";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(o.x+4, cy); ctx.lineTo(o.x+o.w-4, cy);
+      ctx.stroke();
+    }
+  });
+
+  drawParticles(mapTheme);
+
+  buffsOnMap.forEach(b => {
+    ctx.font = "20px sans-serif";
+    ctx.textAlign="center"; ctx.textBaseline="middle";
+    ctx.fillText(BUFF_LABEL[b.type], b.x, b.y);
+  });
+
+  players.forEach(p => {
+    ctx.globalAlpha = p.opacity;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r*p.hitboxScale, 0, Math.PI*2);
+    ctx.fillStyle = p.color;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+
+    ctx.fillStyle = "#fff";
+    ctx.font = "12px sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText(p.name, p.x, p.y - p.r - 8);
+
+    if(p.tagged){
+      ctx.font = "16px sans-serif";
+      ctx.fillText("🏷️", p.x, p.y - p.r - 22);
+    }
+  });
+}
+
+function renderBuffHud(){
+  const hud = document.getElementById("buffHud");
+  hud.innerHTML = "";
+  players.forEach(p => {
+    const div = document.createElement("div");
+    div.className = "player-buffs";
+    const icons = p.activeBuffs.map(b => BUFF_LABEL[b.type]).join(" ") || "—";
+    div.innerHTML = `<b style="color:${p.color}">${p.name}</b> ${icons}`;
+    hud.appendChild(div);
+  });
+}
+
+function loop(ts){
+  if(!running || paused) return;
+  const dt = lastFrame ? ts-lastFrame : 16;
+  lastFrame = ts;
+  update(dt);
+  draw();
+  renderBuffHud();
+  requestAnimationFrame(loop);
+}
+
+document.getElementById("startBtn").addEventListener("click", () => {
+  ensureAudio();
+  sfx.start();
+  setupPanel.style.display = "none";
+  gameWrap.style.display = "flex";
+  document.getElementById("pauseOverlay").style.display = "none";
+  document.getElementById("pauseBtn").textContent = "Tạm dừng (Esc)";
+  resetGame();
+  running = true;
+  paused = false;
+  lastFrame = 0;
+  requestAnimationFrame(loop);
+
+  timerInterval = setInterval(() => {
+    if(paused) return;
+    timeLeft--;
+    document.getElementById("timer").textContent = timeLeft;
+    if(timeLeft <= 5 && timeLeft > 0) sfx.tick();
+    if(Math.random() < 0.3) spawnBuff();
+    if(timeLeft <= 0){
+      endGame();
+    }
+  }, 1000);
+});
+
+function endGame(){
+  running = false;
+  paused = false;
+  clearInterval(timerInterval);
+  gameWrap.style.display = "none";
+  endScreen.style.display = "flex";
+  sfx.over();
+  const loser = players.find(p => p.tagged);
+  document.getElementById("endTitle").textContent =
+    loser ? `${loser.name} vẫn dính tag — thua!` : "Hết giờ!";
+}
+
+document.getElementById("restartBtn").addEventListener("click", () => {
+  endScreen.style.display = "none";
+  setupPanel.style.display = "flex";
+});
+</script>
+
+</body>
+</html>
