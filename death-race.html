@@ -1,1 +1,832 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Death Race</title>
+<style>
+  :root{
+    --bg:#160f1f;
+    --panel:#231530;
+    --panel2:#2e1c3f;
+    --text:#f3ecf7;
+    --muted:#b09cc2;
+    --accent:#ff2fd6;
+    --accent2:#9d4edd;
+    --accent-dim:#3a1950;
+    --canvas-bg:#0d0817;
+    --gold:#ffd166;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:"Segoe UI",system-ui,sans-serif;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    min-height:100vh;
+    flex-direction:column;
+    gap:14px;
+    user-select:none;
+    padding:20px;
+  }
+  h1{
+    font-size:1.5rem;letter-spacing:.5px;
+    background:linear-gradient(90deg,var(--accent),var(--accent2));
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  .panel{
+    background:var(--panel);
+    border-radius:16px;
+    padding:28px 34px;
+    width:460px;
+    display:flex;
+    flex-direction:column;
+    gap:14px;
+  }
+  .coin-row{
+    display:flex; justify-content:space-between; align-items:center;
+    background:var(--panel2); padding:10px 16px; border-radius:10px;
+  }
+  .coin-row b{color:var(--gold);}
+  .menu-btn{
+    background:var(--panel2);
+    border:none;
+    color:var(--text);
+    padding:14px;
+    border-radius:10px;
+    cursor:pointer;
+    font-size:0.95rem;
+    text-align:left;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+  }
+  .menu-btn:hover{background:var(--accent-dim);}
+  .menu-btn small{color:var(--muted);font-weight:400;}
+  .start-btn{
+    background:linear-gradient(90deg,var(--accent),var(--accent2));
+    color:#1a0f26;
+    border:none;
+    padding:12px;
+    border-radius:10px;
+    font-weight:700;
+    font-size:0.95rem;
+    cursor:pointer;
+    box-shadow:0 0 16px -4px var(--accent);
+  }
+  .ghost-btn{
+    background:var(--panel2);
+    color:var(--text);
+    border:none;
+    padding:10px;
+    border-radius:10px;
+    cursor:pointer;
+    font-size:0.85rem;
+  }
+  .controls-hint{font-size:0.78rem;color:var(--muted);text-align:center;line-height:1.5;}
 
+  /* ---- main menu tiles ---- */
+  #mainMenu{width:600px;}
+  .menu-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+  .mode-tile{
+    position:relative;
+    border:none;
+    border-radius:14px;
+    padding:16px 12px 14px;
+    min-height:150px;
+    display:flex;
+    flex-direction:column;
+    justify-content:flex-end;
+    gap:4px;
+    overflow:hidden;
+    cursor:pointer;
+    color:#fff;
+    text-align:left;
+    transition:transform .15s, box-shadow .15s;
+  }
+  .mode-tile:hover{transform:translateY(-3px);}
+  .mode-tile .tile-icon{position:absolute;top:12px;right:12px;font-size:1.9rem;opacity:0.55;}
+  .mode-tile .tile-title{font-weight:800;font-size:1.02rem;text-shadow:0 1px 4px rgba(0,0,0,.4);}
+  .mode-tile .tile-sub{font-size:0.7rem;color:rgba(255,255,255,0.88);}
+  .tile-death{background:linear-gradient(160deg,#ff3d5c,#5c0f22);box-shadow:0 0 0 0 transparent;}
+  .tile-death:hover{box-shadow:0 0 18px -4px #ff3d5c;}
+  .tile-free{background:linear-gradient(160deg,#30c1ff,#0e3a66);}
+  .tile-free:hover{box-shadow:0 0 18px -4px #30c1ff;}
+  .tile-shop{background:linear-gradient(160deg,#ffcf3d,#6b4e0f);}
+  .tile-shop:hover{box-shadow:0 0 18px -4px #ffcf3d;}
+
+  /* ---- shop ---- */
+  #shopPanel{width:760px;}
+  .shop-grid{
+    display:grid;
+    grid-template-columns:repeat(2,1fr);
+    gap:12px;
+    max-height:440px;
+    overflow-y:auto;
+    padding-right:4px;
+  }
+  .bike-card{
+    background:var(--panel2);
+    border-radius:12px;
+    padding:14px;
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    border:2px solid transparent;
+  }
+  .bike-card.equipped{border-color:var(--accent);}
+  .bike-head{display:flex;justify-content:space-between;align-items:center;}
+  .bike-name{font-weight:700;font-size:0.95rem;}
+  .bike-swatch{width:16px;height:16px;border-radius:50%;}
+  .stat-row{display:flex;align-items:center;gap:6px;font-size:0.72rem;color:var(--muted);}
+  .stat-bar{flex:1;height:5px;background:#1a1222;border-radius:4px;overflow:hidden;}
+  .stat-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));}
+  .bike-foot{display:flex;justify-content:space-between;align-items:center;margin-top:4px;}
+  .bike-price{font-size:0.8rem;color:var(--gold);}
+  .buy-btn{
+    background:var(--accent-dim); color:#ffa8f0; border:none;
+    padding:6px 12px; border-radius:8px; font-size:0.78rem; cursor:pointer;
+  }
+  .buy-btn:disabled{opacity:0.4;cursor:default;}
+  .buy-btn.equipped-tag{background:transparent;color:var(--accent);}
+
+  /* ---- race screen ---- */
+  #gameWrap{display:none;flex-direction:column;align-items:center;gap:10px;}
+  #hud{display:flex;flex-direction:column;gap:6px;width:800px;}
+  #hudTop{display:flex;justify-content:space-between;align-items:center;font-size:0.85rem;}
+  #raceProgress{display:flex;flex-direction:column;gap:3px;}
+  .progress-track{
+    position:relative; width:100%; height:8px; background:#231530; border-radius:6px; overflow:visible;
+  }
+  .progress-dot{
+    position:absolute; top:-3px; width:14px; height:14px; border-radius:50%;
+    border:2px solid #0d0817; transform:translateX(-50%);
+  }
+  #pauseBtn{
+    background:var(--panel2); color:var(--text); border:none;
+    padding:6px 14px; border-radius:8px; cursor:pointer; font-size:0.85rem;
+  }
+  #pauseBtn:hover{background:var(--accent-dim);}
+  #canvasHolder{position:relative;}
+  canvas{background:var(--canvas-bg);border-radius:12px;display:block;}
+
+  #pauseOverlay, #endScreen{
+    display:none; flex-direction:column; align-items:center; justify-content:center;
+    gap:14px; color:#fff;
+  }
+  #pauseOverlay{position:absolute; inset:0; background:rgba(10,6,16,0.8); border-radius:12px;}
+  #endScreen{background:var(--panel); padding:30px 40px; border-radius:16px; gap:10px;}
+  #endScreen h2{color:var(--accent);}
+  #endScreen .end-row{display:flex;gap:10px;}
+</style>
+</head>
+<body>
+
+<h1>Death Race</h1>
+
+<div class="panel" id="mainMenu">
+  <div class="coin-row">🪙 Xu hiện có <b id="coinDisplay">0</b></div>
+  <div class="menu-grid">
+    <button class="mode-tile tile-death" id="btnDeathRace">
+      <span class="tile-icon">🏁</span>
+      <span class="tile-title">Đua Tử Thần</span>
+      <span class="tile-sub">Đua với bot · về đích trước +100 xu</span>
+    </button>
+    <button class="mode-tile tile-free" id="btnFreeRace">
+      <span class="tile-icon">🛣️</span>
+      <span class="tile-title">Đua Tự Do</span>
+      <span class="tile-sub">Đường vô tận · nhiều khúc cua</span>
+    </button>
+    <button class="mode-tile tile-shop" id="btnShop">
+      <span class="tile-icon">🏍️</span>
+      <span class="tile-title">Gara - Shop</span>
+      <span class="tile-sub" id="equippedLabel">đang dùng: ...</span>
+    </button>
+  </div>
+  <p class="controls-hint">Điều khiển: W/S hoặc ↑/↓ để tăng/giảm ga, A/D hoặc ←/→ để lái và bám cua. Esc để tạm dừng.</p>
+</div>
+
+<div class="panel" id="shopPanel" style="display:none;">
+  <div class="coin-row">Xu hiện có <b id="coinDisplayShop">0</b></div>
+  <div class="shop-grid" id="shopGrid"></div>
+  <button class="ghost-btn" id="shopBackBtn">← Quay lại</button>
+</div>
+
+<div id="gameWrap">
+  <div id="hud">
+    <div id="hudTop">
+      <div id="hudLeft">—</div>
+      <div id="hudRight"></div>
+      <button id="pauseBtn">Tạm dừng (Esc)</button>
+    </div>
+    <div id="raceProgress" style="display:none;">
+      <div class="progress-track" id="progressTrack"></div>
+    </div>
+  </div>
+  <div id="canvasHolder">
+    <canvas id="canvas" width="800" height="520"></canvas>
+    <div id="pauseOverlay">
+      <h3 style="font-size:1.3rem;">Tạm dừng</h3>
+      <button class="start-btn" id="resumeBtn">Tiếp tục</button>
+      <button class="ghost-btn" id="quitBtn" style="width:160px;">Thoát ra menu</button>
+    </div>
+  </div>
+</div>
+
+<div id="endScreen">
+  <h2 id="endTitle"></h2>
+  <p id="endSub" style="color:var(--muted);font-size:0.9rem;"></p>
+  <div class="end-row">
+    <button class="start-btn" id="retryBtn">Đua lại</button>
+    <button class="ghost-btn" id="toMenuBtn">Về menu</button>
+  </div>
+</div>
+
+<script>
+const mainMenu = document.getElementById("mainMenu");
+const shopPanel = document.getElementById("shopPanel");
+const gameWrap = document.getElementById("gameWrap");
+const endScreen = document.getElementById("endScreen");
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+
+// ---------------- persistence ----------------
+const SAVE_KEY = "deathrace_save_v1";
+function loadSave(){
+  try{
+    const s = JSON.parse(localStorage.getItem(SAVE_KEY));
+    if(s && s.owned) return s;
+  }catch(e){}
+  return { coins:0, owned:["kowa125"], equipped:"kowa125", bestFree:0 };
+}
+let save = loadSave();
+function persist(){ try{ localStorage.setItem(SAVE_KEY, JSON.stringify(save)); }catch(e){} }
+
+// ---------------- bikes (fictional names in the spirit of real moto brands) ----------------
+const BIKES = [
+  { id:"kowa125",   name:"Kowa 125",        price:0,    speed:1.00, handling:1.00, color:"#4da6ff" },
+  { id:"hondo250",  name:"Hondo CB250",     price:1500, speed:1.08, handling:1.12, color:"#4caf50" },
+  { id:"suzuku150", name:"Suzuku GSX150",   price:1800, speed:1.15, handling:1.05, color:"#ffcf3d" },
+  { id:"ducchi300", name:"Ducchi 300",      price:2200, speed:1.20, handling:0.95, color:"#ff2fd6" },
+  { id:"yamaho320", name:"Yamaho R3",       price:2600, speed:1.25, handling:1.00, color:"#ff8a3d" },
+  { id:"kasaki400", name:"Kasaki Ninza 400",price:3000, speed:1.30, handling:0.98, color:"#9d4edd" },
+  { id:"harlee500", name:"Harlee Iron 500", price:3800, speed:1.38, handling:0.88, color:"#ff5e3d" },
+];
+function bikeById(id){ return BIKES.find(b=>b.id===id) || BIKES[0]; }
+
+// ---------------- sound ----------------
+let audioCtx = null, engineOsc=null, engineGain=null;
+function ensureAudio(){
+  if(!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+  if(audioCtx.state==="suspended") audioCtx.resume();
+}
+function tone(freq,dur,type="sine",vol=0.12,delay=0){
+  if(!audioCtx) return;
+  const osc=audioCtx.createOscillator(), gain=audioCtx.createGain();
+  osc.type=type; osc.frequency.value=freq;
+  const t0=audioCtx.currentTime+delay;
+  gain.gain.setValueAtTime(vol,t0);
+  gain.gain.exponentialRampToValueAtTime(0.001,t0+dur);
+  osc.connect(gain); gain.connect(audioCtx.destination);
+  osc.start(t0); osc.stop(t0+dur);
+}
+function noiseBurst(dur,vol=0.2){
+  if(!audioCtx) return;
+  const bufferSize = audioCtx.sampleRate*dur;
+  const buffer = audioCtx.createBuffer(1,bufferSize,audioCtx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for(let i=0;i<bufferSize;i++) data[i]=(Math.random()*2-1)*(1-i/bufferSize);
+  const src = audioCtx.createBufferSource();
+  src.buffer = buffer;
+  const gain = audioCtx.createGain();
+  gain.gain.value = vol;
+  src.connect(gain); gain.connect(audioCtx.destination);
+  src.start();
+}
+function startEngine(){
+  if(!audioCtx) return;
+  stopEngine();
+  engineOsc = audioCtx.createOscillator();
+  engineGain = audioCtx.createGain();
+  engineOsc.type = "sawtooth";
+  engineOsc.frequency.value = 60;
+  engineGain.gain.value = 0.035;
+  engineOsc.connect(engineGain); engineGain.connect(audioCtx.destination);
+  engineOsc.start();
+}
+function updateEngine(speedRatio){
+  if(engineOsc) engineOsc.frequency.value = 55 + speedRatio*140;
+}
+function stopEngine(){
+  if(engineOsc){ try{ engineOsc.stop(); }catch(e){} engineOsc=null; }
+}
+const sfx = {
+  crash: () => { noiseBurst(0.25,0.28); tone(100,0.3,"sawtooth",0.18); },
+  coin:  () => { tone(880,0.07,"square",0.1); tone(1180,0.08,"square",0.1,0.06); },
+  win:   () => { tone(660,0.1,"triangle",0.14); tone(880,0.1,"triangle",0.14,0.1); tone(1100,0.16,"triangle",0.14,0.2); },
+  lose:  () => { tone(440,0.16,"sawtooth",0.12); tone(260,0.26,"sawtooth",0.12,0.14); },
+  pause: () => tone(320,0.08,"sine",0.1),
+  resume:() => tone(460,0.08,"sine",0.1),
+  click: () => tone(500,0.05,"sine",0.08),
+  buy:   () => { tone(520,0.08,"triangle",0.12); tone(760,0.1,"triangle",0.12,0.08); },
+};
+
+// ---------------- menu wiring ----------------
+function refreshMenu(){
+  document.getElementById("coinDisplay").textContent = save.coins;
+  document.getElementById("equippedLabel").textContent = "đang dùng: " + bikeById(save.equipped).name;
+}
+refreshMenu();
+
+function renderShop(){
+  document.getElementById("coinDisplayShop").textContent = save.coins;
+  const grid = document.getElementById("shopGrid");
+  grid.innerHTML = "";
+  BIKES.forEach(b => {
+    const owned = save.owned.includes(b.id);
+    const equipped = save.equipped === b.id;
+    const card = document.createElement("div");
+    card.className = "bike-card" + (equipped ? " equipped" : "");
+    card.innerHTML = `
+      <div class="bike-head">
+        <span class="bike-name">${b.name}</span>
+        <span class="bike-swatch" style="background:${b.color}"></span>
+      </div>
+      <div class="stat-row">Tốc độ <div class="stat-bar"><div class="stat-fill" style="width:${Math.min(100,(b.speed-0.9)/0.6*100)}%"></div></div></div>
+      <div class="stat-row">Bẻ lái <div class="stat-bar"><div class="stat-fill" style="width:${Math.min(100,(b.handling-0.8)/0.4*100)}%"></div></div></div>
+      <div class="bike-foot">
+        <span class="bike-price">${b.price===0 ? "Mặc định" : b.price+" xu"}</span>
+        <button class="buy-btn" data-id="${b.id}">${equipped ? "Đang dùng" : owned ? "Dùng xe này" : "Mua"}</button>
+      </div>`;
+    const btn = card.querySelector(".buy-btn");
+    if(equipped) btn.disabled = true;
+    if(!owned && save.coins < b.price) btn.disabled = true;
+    btn.addEventListener("click", () => {
+      if(owned){
+        save.equipped = b.id;
+        sfx.click();
+      } else if(save.coins >= b.price){
+        save.coins -= b.price;
+        save.owned.push(b.id);
+        save.equipped = b.id;
+        sfx.buy();
+      }
+      persist();
+      renderShop();
+      refreshMenu();
+    });
+    grid.appendChild(card);
+  });
+}
+
+document.getElementById("btnShop").addEventListener("click", () => {
+  ensureAudio();
+  mainMenu.style.display = "none";
+  shopPanel.style.display = "flex";
+  renderShop();
+});
+document.getElementById("shopBackBtn").addEventListener("click", () => {
+  shopPanel.style.display = "none";
+  mainMenu.style.display = "flex";
+  refreshMenu();
+});
+
+// ---------------- race state ----------------
+const ROAD_W = 340;
+const PPM = 0.9; // pixels per meter of distance-gap on screen
+const FINISH_DIST = 6000;
+
+// colorful track zones, cycling every ZONE_LEN meters
+const ZONE_LEN = 1500;
+const ZONES = [
+  { name:"Neon tím",  sky:["#140c22","#2a1240"], road:"#1c1428", curb:["#ff2fd6","#f3ecf7"], hill:"rgba(157,78,221,0.35)" },
+  { name:"Băng xanh", sky:["#071a2e","#0e3a55"],  road:"#0f2436", curb:["#30c1ff","#f3ecf7"], hill:"rgba(48,193,255,0.3)" },
+  { name:"Hoàng hôn", sky:["#2a0f10","#5c1f12"],  road:"#2b1414", curb:["#ff8a3d","#f3ecf7"], hill:"rgba(255,138,61,0.3)" },
+  { name:"Rừng đêm",  sky:["#0c1f12","#163620"],  road:"#13251a", curb:["#6bd96b","#f3ecf7"], hill:"rgba(107,217,107,0.3)" },
+];
+function zoneAt(dist){ return ZONES[Math.floor(dist/ZONE_LEN) % ZONES.length]; }
+
+// deterministic winding curve: horizontal pixel offset of the road's
+// centerline at a given distance along the track
+function curveOffset(dist){
+  return Math.sin(dist*0.0021)*150 + Math.sin(dist*0.00075+2)*90;
+}
+
+let mode = "death"; // "death" | "free"
+let player, bots, scenery;
+let running=false, paused=false;
+let lastFrame=0, smokeTimer=0, finished=false;
+let freeMilestone=0, freeEarned=0; // coin-per-1000m tracking for Free Race
+let keys = {};
+const MOVE_KEYS = new Set(["w","s","a","d","arrowup","arrowdown","arrowleft","arrowright"]);
+window.addEventListener("keydown", e=>{
+  const k=e.key.toLowerCase();
+  if(k==="escape"){ togglePause(); return; }
+  keys[k]=true;
+  if(MOVE_KEYS.has(k)) e.preventDefault();
+});
+window.addEventListener("keyup", e=>{ keys[e.key.toLowerCase()]=false; });
+
+function newRacer(bikeStats, laneX){
+  return { x:laneX, distance:0, speed:0, bike:bikeStats, crashTimer:0 };
+}
+
+function setupRace(selectedMode){
+  mode = selectedMode;
+  const bike = bikeById(save.equipped);
+  player = newRacer(bike, 0.5);
+  player.ax = canvas.width/2; // absolute screen x — only steering input moves this
+  smokeTimer = 0;
+  finished = false;
+  freeMilestone = 0;
+  freeEarned = 0;
+  scenery = [];
+  for(let i=0;i<30;i++) scenery.push({ dist: i*160, side: Math.random()<0.5?-1:1 });
+
+  if(mode==="death"){
+    bots = [0.3,0.7].map((lx,i) => {
+      const botBike = { speed: 0.92 + Math.random()*0.16, handling:1 };
+      const r = newRacer(botBike, lx);
+      r.targetSpeedMul = 0.45 + Math.random()*0.7; // random — sometimes slow, sometimes genuinely fast
+      r.nextSpeedChange = 1200 + Math.random()*2200;
+      return r;
+    });
+    document.getElementById("raceProgress").style.display = "flex";
+  } else {
+    bots = [];
+    document.getElementById("raceProgress").style.display = "none";
+  }
+}
+
+function startRace(selectedMode){
+  ensureAudio();
+  setupRace(selectedMode);
+  mainMenu.style.display="none";
+  shopPanel.style.display="none";
+  endScreen.style.display="none";
+  gameWrap.style.display="flex";
+  document.getElementById("pauseOverlay").style.display="none";
+  document.getElementById("pauseBtn").textContent="Tạm dừng (Esc)";
+  running=true; paused=false; lastFrame=0;
+  startEngine();
+  requestAnimationFrame(loop);
+}
+document.getElementById("btnDeathRace").addEventListener("click", () => startRace("death"));
+document.getElementById("btnFreeRace").addEventListener("click", () => startRace("free"));
+
+// ---------------- physics / AI ----------------
+const PLAYER_MAX_BASE = 7.5;
+let shake=0;
+let particles=[];
+
+function roadBoundsAt(dist){
+  const center = canvas.width/2 + curveOffset(dist);
+  return { center, l:center-ROAD_W/2, r:center+ROAD_W/2 };
+}
+
+function spawnDust(x,y){
+  for(let i=0;i<3;i++){
+    particles.push({ x:x+(Math.random()-0.5)*10, y:y+(Math.random()-0.5)*6,
+      vx:(Math.random()-0.5)*0.6, vy:0.5+Math.random()*0.8,
+      life:1, s:3+Math.random()*3, color:"rgba(180,160,140,0.5)" });
+  }
+}
+function spawnSmokePuff(x,y){
+  particles.push({ x,y, vx:(Math.random()-0.5)*0.5, vy:1+Math.random()*0.6,
+    life:1, s:4+Math.random()*4, color:"rgba(140,140,150,0.45)" });
+}
+function spawnCrashBurst(x,y){
+  for(let i=0;i<22;i++){
+    const ang = Math.random()*Math.PI*2, spd=2+Math.random()*5;
+    particles.push({ x,y, vx:Math.cos(ang)*spd, vy:Math.sin(ang)*spd,
+      life:1, s:2+Math.random()*4, color: Math.random()<0.5 ? "rgba(255,150,60,0.8)" : "rgba(90,90,95,0.7)" });
+  }
+}
+
+function update(dt){
+  const maxSpeed = PLAYER_MAX_BASE*player.bike.speed;
+  const bounds = roadBoundsAt(player.distance);
+
+  // player controls
+  if(player.crashTimer>0){
+    player.crashTimer -= dt;
+    player.speed *= 0.95;
+  } else {
+    const accel = (keys["w"]||keys["arrowup"]) ? 1 : (keys["s"]||keys["arrowdown"]) ? -1.6 : -0.35;
+    player.speed += accel*dt*0.01;
+    const steer = 0.55*player.bike.handling*dt;
+    if(keys["a"]||keys["arrowleft"]) player.ax -= steer;
+    if(keys["d"]||keys["arrowright"]) player.ax += steer;
+    player.ax = Math.max(30, Math.min(canvas.width-30, player.ax));
+  }
+
+  // on/off-road check — this is what makes curves matter: drift off
+  // the line (or fail to counter-steer through a bend) and you pay for it
+  const normX = (player.ax - bounds.l) / ROAD_W;
+  const offRoad = normX < 0 || normX > 1;
+  const hardOff = normX < -0.4 || normX > 1.4;
+
+  if(hardOff && player.crashTimer<=0){
+    player.crashTimer = 800;
+    player.speed *= 0.15;
+    sfx.crash();
+    shake = 12;
+    spawnCrashBurst(player.ax, canvas.height-120);
+    // snap back onto the road so a crash never leaves you permanently
+    // stuck off-map with no way to recover
+    player.ax = bounds.center;
+    if(mode==="free"){ endRace(false); }
+  } else if(offRoad && player.crashTimer<=0){
+    player.speed = Math.max(0, player.speed - dt*0.006*maxSpeed);
+    // gentle rumble-strip pull back toward the road so drifting off
+    // the edge is a penalty, not a dead end
+    const pull = 0.1*dt;
+    if(player.ax < bounds.l) player.ax = Math.min(bounds.l, player.ax+pull);
+    else if(player.ax > bounds.r) player.ax = Math.max(bounds.r, player.ax-pull);
+    smokeTimer -= dt;
+    if(smokeTimer<=0){ spawnDust(player.ax, canvas.height-104); smokeTimer=70; }
+  }
+
+  player.speed = Math.max(0, Math.min(maxSpeed, player.speed));
+  player.distance += player.speed*dt*0.06;
+  updateEngine(player.speed/maxSpeed);
+
+  // Free Race: +10 xu for every 1000m covered
+  if(mode==="free"){
+    const milestone = Math.floor(player.distance/1000);
+    if(milestone > freeMilestone){
+      const gained = (milestone-freeMilestone)*10;
+      freeMilestone = milestone;
+      freeEarned += gained;
+      save.coins += gained;
+      persist();
+      sfx.coin();
+    }
+  }
+
+  // light exhaust smoke while cruising fast and on-road
+  if(!offRoad && player.speed > maxSpeed*0.55){
+    smokeTimer -= dt;
+    if(smokeTimer<=0){ spawnSmokePuff(player.ax+6, canvas.height-104); smokeTimer=180; }
+  }
+
+  // bots (death race) — always track the curve's ideal line, pace varies randomly
+  bots.forEach(b => {
+    b.nextSpeedChange -= dt;
+    if(b.nextSpeedChange<=0){
+      b.targetSpeedMul = 0.45 + Math.random()*0.7;
+      b.nextSpeedChange = 1200 + Math.random()*2200;
+    }
+    const target = PLAYER_MAX_BASE*b.bike.speed*b.targetSpeedMul;
+    b.speed += (target-b.speed)*dt*0.004;
+    b.x += Math.sin((b.distance + (b===bots[0]?0:50))*0.02)*0.0015*dt;
+    b.x = Math.max(0.12, Math.min(0.88, b.x));
+    b.distance += b.speed*dt*0.06;
+  });
+
+  particles.forEach(p => { p.x+=p.vx*dt*0.06; p.y+=p.vy*dt*0.06; p.life-=dt*0.0018; });
+  particles = particles.filter(p => p.life>0);
+
+  if(shake>0) shake = Math.max(0, shake-dt*0.08);
+
+  // win condition (death race)
+  if(mode==="death" && !finished){
+    if(player.distance >= FINISH_DIST){ finished=true; endRace(true); }
+    else if(bots.some(b=>b.distance>=FINISH_DIST)){ finished=true; endRace(false); }
+  }
+}
+
+// ---------------- drawing ----------------
+// y on screen for something at world `distAhead` relative to the player
+function screenY(distAhead){ return canvas.height-120 - distAhead*PPM; }
+// road center/left/right at a given screen y, expressed via the world
+// distance that maps to it (so curves read correctly near and far)
+function boundsAtScreenY(y){
+  const distAhead = (canvas.height-120-y)/PPM;
+  return roadBoundsAt(player.distance+distAhead);
+}
+
+function draw(){
+  const zone = zoneAt(player.distance);
+  ctx.save();
+  if(shake>0) ctx.translate((Math.random()-0.5)*shake,(Math.random()-0.5)*shake);
+
+  // sky/ground, tinted per zone
+  const g = ctx.createLinearGradient(0,0,0,canvas.height);
+  g.addColorStop(0,zone.sky[0]); g.addColorStop(1,zone.sky[1]);
+  ctx.fillStyle=g; ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  // distant hills silhouette
+  ctx.fillStyle = zone.hill;
+  ctx.beginPath();
+  ctx.moveTo(0,110);
+  for(let x=0;x<=canvas.width;x+=40){
+    ctx.lineTo(x, 110 - Math.sin((x+player.distance*0.5)*0.01)*22 - 14);
+  }
+  ctx.lineTo(canvas.width,160); ctx.lineTo(0,160); ctx.closePath(); ctx.fill();
+
+  // build the curving road as a filled ribbon, sampled top to bottom
+  const STEP = 10;
+  ctx.fillStyle = zone.road;
+  ctx.beginPath();
+  for(let y=0;y<=canvas.height;y+=STEP){
+    const b = boundsAtScreenY(y);
+    if(y===0) ctx.moveTo(b.l,y); else ctx.lineTo(b.l,y);
+  }
+  for(let y=canvas.height;y>=0;y-=STEP){
+    const b = boundsAtScreenY(y);
+    ctx.lineTo(b.r,y);
+  }
+  ctx.closePath(); ctx.fill();
+
+  // striped curbs along both edges
+  const curbOffset = (player.distance*PPM*1.2) % 32;
+  for(let y=-32;y<=canvas.height;y+=32){
+    const yy = y + ((curbOffset)%32);
+    const b = boundsAtScreenY(yy);
+    const stripeOn = Math.floor((yy+curbOffset)/32)%2===0;
+    ctx.fillStyle = stripeOn ? zone.curb[0] : zone.curb[1];
+    ctx.fillRect(b.l-10, yy, 10, 18);
+    ctx.fillRect(b.r, yy, 10, 18);
+  }
+
+  // lane center dashes
+  const dashOffset = (player.distance*PPM*1.6) % 40;
+  ctx.strokeStyle="rgba(255,255,255,0.3)"; ctx.lineWidth=3;
+  ctx.setLineDash([18,18]); ctx.lineDashOffset=-dashOffset;
+  ctx.beginPath();
+  for(let y=0;y<=canvas.height;y+=STEP){
+    const b = boundsAtScreenY(y);
+    if(y===0) ctx.moveTo(b.center,y); else ctx.lineTo(b.center,y);
+  }
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // side scenery dots
+  scenery.forEach(s => {
+    let gap = s.dist - (player.distance % 2000);
+    if(gap < -300) gap += 2000;
+    const y = screenY(gap);
+    if(y<-20 || y>canvas.height+20) return;
+    const b = boundsAtScreenY(y);
+    const x = s.side<0 ? b.l-26 : b.r+26;
+    ctx.fillStyle = zone.hill;
+    ctx.beginPath(); ctx.arc(x,y,9,0,Math.PI*2); ctx.fill();
+  });
+
+  // checkered finish line
+  const finGap = FINISH_DIST - player.distance;
+  if(finGap > -40 && finGap < 500){
+    const y = screenY(finGap);
+    const b = boundsAtScreenY(y);
+    const cw = (b.r-b.l)/8;
+    for(let i=0;i<8;i++){
+      ctx.fillStyle = i%2===0 ? "#fff" : "#1a1222";
+      ctx.fillRect(b.l+i*cw, y-6, cw, 12);
+    }
+  }
+
+  // particles (dust / smoke / crash sparks)
+  particles.forEach(p => {
+    ctx.globalAlpha = Math.max(p.life,0);
+    ctx.fillStyle = p.color;
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.s,0,Math.PI*2); ctx.fill();
+  });
+  ctx.globalAlpha = 1;
+
+  // bots
+  bots.forEach(b => {
+    const gap = b.distance-player.distance;
+    const by = screenY(gap);
+    const bb = boundsAtScreenY(by);
+    drawBike(bb.l + b.x*(bb.r-bb.l), by, b.bike.color||"#ff8a3d", false, false);
+  });
+
+  // player (steers by absolute screen position, so no bounds lookup needed)
+  drawBike(player.ax, canvas.height-120, player.bike.color, player.crashTimer>0, player.speed>PLAYER_MAX_BASE*player.bike.speed*0.5);
+
+  ctx.restore();
+}
+
+function drawBike(x,y,color,crashed,flame){
+  if(y<-40||y>canvas.height+40) return;
+  ctx.save();
+  ctx.translate(x,y);
+  if(crashed && Math.floor(performance.now()/100)%2===0) ctx.globalAlpha=0.4;
+
+  // exhaust flame flicker, drawn behind the bike body
+  if(flame && !crashed){
+    const flick = 0.7+Math.random()*0.6;
+    ctx.beginPath();
+    ctx.moveTo(-4,18);
+    ctx.quadraticCurveTo(0,18+14*flick,4,18);
+    ctx.quadraticCurveTo(0,18+7*flick,-4,18);
+    const fg = ctx.createLinearGradient(0,18,0,18+16);
+    fg.addColorStop(0,"rgba(255,220,120,0.9)");
+    fg.addColorStop(0.6,"rgba(255,140,40,0.75)");
+    fg.addColorStop(1,"rgba(255,60,30,0)");
+    ctx.fillStyle = fg;
+    ctx.fill();
+  }
+
+  ctx.fillStyle = color;
+  ctx.beginPath(); ctx.roundRect(-9,-18,18,36,6); ctx.fill();
+  ctx.fillStyle = "#1a1222";
+  ctx.beginPath(); ctx.ellipse(0,-14,6,5,0,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle = "rgba(255,255,255,0.5)";
+  ctx.beginPath(); ctx.ellipse(0,14,4,5,0,0,Math.PI*2); ctx.fill();
+  ctx.restore();
+}
+
+function renderProgressBar(){
+  if(mode!=="death") return;
+  const track = document.getElementById("progressTrack");
+  track.innerHTML = "";
+  const mk = (pct,color) => {
+    const d = document.createElement("div");
+    d.className="progress-dot";
+    d.style.left = Math.min(100,pct*100)+"%";
+    d.style.background = color;
+    track.appendChild(d);
+  };
+  mk(player.distance/FINISH_DIST, player.bike.color);
+  bots.forEach(b => mk(b.distance/FINISH_DIST, b.bike.color));
+}
+
+function updateHud(){
+  if(mode==="death"){
+    document.getElementById("hudLeft").textContent = `Đua tử thần — ${Math.min(FINISH_DIST,Math.floor(player.distance))}/${FINISH_DIST}m`;
+  } else {
+    document.getElementById("hudLeft").textContent = `Đua tự do — ${Math.floor(player.distance)}m (kỷ lục ${save.bestFree}m)`;
+  }
+  document.getElementById("hudRight").textContent = mode==="free" ? `🪙 +${freeEarned} xu` : "";
+  renderProgressBar();
+}
+
+function loop(ts){
+  if(!running||paused) return;
+  const dt = lastFrame ? ts-lastFrame : 16;
+  lastFrame = ts;
+  update(dt);
+  draw();
+  updateHud();
+  requestAnimationFrame(loop);
+}
+
+// ---------------- end / pause / quit ----------------
+function endRace(playerWon){
+  running=false; paused=false;
+  stopEngine();
+  gameWrap.style.display="none";
+  endScreen.style.display="flex";
+  if(mode==="death"){
+    if(playerWon){
+      save.coins += 100;
+      persist(); refreshMenu();
+      sfx.win();
+      document.getElementById("endTitle").textContent = "Về đích đầu tiên! +100 xu";
+      document.getElementById("endSub").textContent = "Xu hiện có: "+save.coins;
+    } else {
+      sfx.lose();
+      document.getElementById("endTitle").textContent = "Thua rồi!";
+      document.getElementById("endSub").textContent = "Bot về đích trước. Thử lại nào.";
+    }
+  } else {
+    const dist = Math.floor(player.distance);
+    if(dist > save.bestFree){ save.bestFree = dist; persist(); }
+    refreshMenu();
+    sfx.lose();
+    document.getElementById("endTitle").textContent = "Đâm xe!";
+    document.getElementById("endSub").textContent = `Đi được ${dist}m — kỷ lục ${save.bestFree}m — kiếm được ${freeEarned} xu`;
+  }
+}
+
+function togglePause(){
+  if(!running) return;
+  paused=!paused;
+  document.getElementById("pauseOverlay").style.display = paused?"flex":"none";
+  document.getElementById("pauseBtn").textContent = paused?"Tiếp tục (Esc)":"Tạm dừng (Esc)";
+  sfx[paused?"pause":"resume"]();
+  if(paused) stopEngine(); else { startEngine(); lastFrame=0; requestAnimationFrame(loop); }
+}
+document.getElementById("pauseBtn").addEventListener("click", togglePause);
+document.getElementById("resumeBtn").addEventListener("click", togglePause);
+
+function quitToMenu(){
+  running=false; paused=false;
+  stopEngine();
+  document.getElementById("pauseOverlay").style.display="none";
+  gameWrap.style.display="none";
+  endScreen.style.display="none";
+  mainMenu.style.display="flex";
+  refreshMenu();
+}
+document.getElementById("quitBtn").addEventListener("click", quitToMenu);
+document.getElementById("toMenuBtn").addEventListener("click", quitToMenu);
+document.getElementById("retryBtn").addEventListener("click", () => startRace(mode));
+</script>
+
+</body>
+</html>
