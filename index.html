@@ -4,17 +4,17 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>KangBao Games</title>
-  <link rel="icon" type="image/png" href="Screenshot 2026-10-11 103624.png">
 <style>
   :root{
-    --bg:#2b2b2e;
-    --panel:#38383c;
-    --card:#403f44;
-    --card-hover:#4a4950;
-    --text:#ececec;
-    --muted:#9a999e;
-    --accent:#ff9f43;
-    --accent-dim:#5a4530;
+    --bg:#19121f;
+    --panel:#241a2e;
+    --card:#2d2039;
+    --card-hover:#3a2a4a;
+    --text:#f1e9f7;
+    --muted:#a593b5;
+    --accent:#ff2fd6;
+    --accent2:#9d4edd;
+    --accent-dim:#3a1950;
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
@@ -42,6 +42,10 @@
     font-weight:700;
     margin:0 0 20px 4px;
     letter-spacing:.3px;
+    background:linear-gradient(90deg,var(--accent),var(--accent2));
+    -webkit-background-clip:text;
+    background-clip:text;
+    color:transparent;
   }
   .mode-btn{
     appearance:none;
@@ -56,7 +60,7 @@
     transition:background .15s,color .15s;
   }
   .mode-btn:hover{background:var(--card);color:var(--text);}
-  .mode-btn.active{background:var(--accent-dim);color:var(--accent);font-weight:600;}
+  .mode-btn.active{background:var(--accent-dim);color:var(--accent);font-weight:600;box-shadow:0 0 12px -3px var(--accent);}
 
   .sidebar-foot{
     margin-top:auto;
@@ -99,11 +103,11 @@
     transition:background .15s,transform .1s;
     position:relative;
   }
-  .game-card:hover{background:var(--card-hover);transform:translateY(-2px);}
+  .game-card:hover{background:var(--card-hover);transform:translateY(-2px);box-shadow:0 0 18px -4px var(--accent);}
   .thumb{
     width:100%;
     aspect-ratio:1/1;
-    background:linear-gradient(135deg,var(--accent-dim),#2d2d30);
+    background:linear-gradient(135deg,var(--accent-dim),var(--accent2) 160%);
     display:flex;
     align-items:center;
     justify-content:center;
