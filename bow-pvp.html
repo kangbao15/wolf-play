@@ -433,29 +433,29 @@ function fireArrow(shooter, side, dx, dy, dist){
 }
 
 // ---------------- bot AI ----------------
+// ---------------- bot AI (Đã fix lỗi bắn 1 chỗ, cực kỳ đa dạng và khó đoán) ----------------
 function botTakeTurn(){
-  const dx0 = p1.x - p2.x; 
+  // Tạo điểm ngắm dao động ngẫu nhiên quanh vị trí của P1 (lệch từ -70 đến +70 px mỗi lượt)
+  const targetOffsetX = (Math.random() * 140) - 70; 
+  const targetX = p1.x + targetOffsetX;
+  const dx0 = targetX - p2.x;
   const dy0 = (p1.y - 40) - (p2.y - 40);
-  const dist = Math.hypot(dx0, dy0);
 
-  // Random góc bắn từ 32 đến 52 độ để tạo độ cong quỹ đạo đẹp mắt
-  const angleDeg = 32 + Math.random() * 20; 
+  // Mở rộng góc bắn từ 22 đến 62 độ (có lúc bắn ngang, có lúc bắn cầu vồng rất cao)
+  const angleDeg = 22 + Math.random() * 40; 
   const theta = angleDeg * Math.PI / 180;
   const g = GRAVITY;
 
-  // Tính vận tốc cơ bản để bay về phía người chơi, kèm hệ số random lực (85% - 115%) để có lúc hụt lúc trúng
-  let speedNeeded = Math.sqrt(Math.abs(dx0 * g) / Math.sin(2 * theta)) || 9;
-  speedNeeded *= (0.85 + Math.random() * 0.3); 
-  speedNeeded = Math.min(MAX_SPEED * 1.2, speedNeeded);
+  // Tính vận tốc theo điểm ngắm biến đổi liên tục
+  let speedNeeded = Math.sqrt(Math.abs(dx0 * g) / Math.sin(2 * theta)) || 10;
+  
+  // Biến động mạnh lực bắn (từ 65% đến 135%) để mỗi phát bắn ra một quỹ đạo khác hẳn nhau
+  speedNeeded *= (0.65 + Math.random() * 0.7);
+  speedNeeded = Math.min(MAX_SPEED * 1.35, Math.max(5, speedNeeded));
 
   const dirX = dx0 < 0 ? -1 : 1;
-  
-  // Thêm độ lệch góc (spread) vừa phải để bot không phải là "thánh hack"
-  const randomSpread = (Math.random() * 2 - 1) * (8 * Math.PI / 180); // Lệch tối đa 8 độ
-  const baseAng = -theta + randomSpread;
-
-  const vx = Math.cos(baseAng) * speedNeeded * dirX;
-  const vy = Math.sin(baseAng) * speedNeeded;
+  const vx = Math.cos(theta) * speedNeeded * dirX;
+  const vy = -Math.sin(theta) * speedNeeded;
 
   arrow = {
     x: p2.x, y: p2.y - 40,
