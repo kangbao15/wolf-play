@@ -433,32 +433,32 @@ function fireArrow(shooter, side, dx, dy, dist){
 }
 
 // ---------------- bot AI ----------------
-// ---------------- bot AI (Đã fix lỗi bắn 1 chỗ, cực kỳ đa dạng và khó đoán) ----------------
+// ---------------- bot AI (Hoàn toàn ngẫu nhiên, mỗi phát một quỹ đạo khác nhau) ----------------
 function botTakeTurn(){
-  // Tạo điểm ngắm dao động ngẫu nhiên quanh vị trí của P1 (lệch từ -70 đến +70 px mỗi lượt)
-  const targetOffsetX = (Math.random() * 140) - 70; 
-  const targetX = p1.x + targetOffsetX;
-  const dx0 = targetX - p2.x;
-  const dy0 = (p1.y - 40) - (p2.y - 40);
+  // Chọn ngẫu nhiên một điểm rơi mục tiêu quanh khu vực của P1 (từ x = 80 đến 280)
+  const targetX = 80 + Math.random() * 200; 
+  const targetY = p1.y - (20 + Math.random() * 60); // Độ cao ngẫu nhiên
 
-  // Mở rộng góc bắn từ 22 đến 62 độ (có lúc bắn ngang, có lúc bắn cầu vồng rất cao)
-  const angleDeg = 22 + Math.random() * 40; 
-  const theta = angleDeg * Math.PI / 180;
-  const g = GRAVITY;
-
-  // Tính vận tốc theo điểm ngắm biến đổi liên tục
-  let speedNeeded = Math.sqrt(Math.abs(dx0 * g) / Math.sin(2 * theta)) || 10;
+  const startX = p2.x;
+  const startY = p2.y - 40;
   
-  // Biến động mạnh lực bắn (từ 65% đến 135%) để mỗi phát bắn ra một quỹ đạo khác hẳn nhau
-  speedNeeded *= (0.65 + Math.random() * 0.7);
-  speedNeeded = Math.min(MAX_SPEED * 1.35, Math.max(5, speedNeeded));
+  const dx = targetX - startX;
+  const dy = targetY - startY;
 
-  const dirX = dx0 < 0 ? -1 : 1;
-  const vx = Math.cos(theta) * speedNeeded * dirX;
-  const vy = -Math.sin(theta) * speedNeeded;
+  // Hướng từ bot về phía người chơi
+  let angle = Math.atan2(dy, dx);
+  
+  // Cộng thêm độ cong quỹ đạo (góc ngước lên trên) để tên bay theo đường cầu vồng
+  angle -= (0.15 + Math.random() * 0.5); 
+
+  // Random lực bắn (tốc độ) từ 6 đến 14 mỗi lượt
+  const speed = 6 + Math.random() * 8;
+
+  const vx = Math.cos(angle) * speed;
+  const vy = Math.sin(angle) * speed;
 
   arrow = {
-    x: p2.x, y: p2.y - 40,
+    x: startX, y: startY,
     vx: vx, vy: vy,
     owner: "p2", trail: []
   };
