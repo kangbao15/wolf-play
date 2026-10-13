@@ -433,29 +433,21 @@ function fireArrow(shooter, side, dx, dy, dist){
 }
 
 // ---------------- bot AI ----------------
-// ---------------- bot AI (Hoàn toàn ngẫu nhiên, mỗi phát một quỹ đạo khác nhau) ----------------
+// ---------------- bot AI (Chuẩn xác, bay qua sân và có độ ngẫu nhiên cực mượt) ----------------
 function botTakeTurn(){
-  // Chọn ngẫu nhiên một điểm rơi mục tiêu quanh khu vực của P1 (từ x = 80 đến 280)
-  const targetX = 80 + Math.random() * 200; 
-  const targetY = p1.y - (20 + Math.random() * 60); // Độ cao ngẫu nhiên
-
   const startX = p2.x;
   const startY = p2.y - 40;
-  
-  const dx = targetX - startX;
-  const dy = targetY - startY;
 
-  // Hướng từ bot về phía người chơi
-  let angle = Math.atan2(dy, dx);
-  
-  // Cộng thêm độ cong quỹ đạo (góc ngước lên trên) để tên bay theo đường cầu vồng
-  angle -= (0.15 + Math.random() * 0.5); 
+  // Random góc ngẩng từ 30° đến 55° so với phương ngang để tạo quỹ đạo cầu vồng đẹp mắt
+  const angleDeg = 30 + Math.random() * 25;
+  const theta = angleDeg * Math.PI / 180;
 
-  // Random lực bắn (tốc độ) từ 6 đến 14 mỗi lượt
-  const speed = 6 + Math.random() * 8;
+  // Lực bắn (tốc độ) từ 11 đến 15 đủ sức bay trọn khoảng cách sang phía người chơi
+  const speed = 11 + Math.random() * 4;
 
-  const vx = Math.cos(angle) * speed;
-  const vy = Math.sin(angle) * speed;
+  // Hướng sang trái (vx âm) và hướng lên trên (vy âm vì trục y canvas ngược)
+  const vx = -Math.cos(theta) * speed;
+  const vy = -Math.sin(theta) * speed;
 
   arrow = {
     x: startX, y: startY,
