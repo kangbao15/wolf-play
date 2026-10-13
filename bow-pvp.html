@@ -1,1 +1,746 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bow PvP</title>
+<style>
+  :root{
+    --bg:#160f1f;
+    --panel:#231530;
+    --panel2:#2e1c3f;
+    --text:#f3ecf7;
+    --muted:#b09cc2;
+    --accent:#ff2fd6;
+    --accent2:#9d4edd;
+    --accent-dim:#3a1950;
+    --gold:#ffd166;
+    --p1:#4da6ff;
+    --p2:#ff2fd6;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:"Segoe UI",system-ui,sans-serif;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    min-height:100vh;
+    flex-direction:column;
+    gap:14px;
+    user-select:none;
+    padding:20px;
+  }
+  h1{
+    font-size:1.5rem;letter-spacing:.5px;
+    background:linear-gradient(90deg,var(--accent),var(--accent2));
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  .panel{
+    background:var(--panel);
+    border-radius:16px;
+    padding:26px 30px;
+    width:560px;
+    display:flex;
+    flex-direction:column;
+    gap:14px;
+  }
+  .coin-row{
+    display:flex; justify-content:space-between; align-items:center;
+    background:var(--panel2); padding:10px 16px; border-radius:10px;
+  }
+  .coin-row b{color:var(--gold);}
 
+  /* ---- menu ---- */
+  .menu-art{display:flex;align-items:center;justify-content:center;gap:10px;font-size:1.6rem;opacity:0.9;}
+  .menu-art .dash{flex:1;height:2px;background:repeating-linear-gradient(90deg,var(--accent) 0 8px,transparent 8px 14px);}
+  .menu-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  .mode-tile{
+    position:relative; border:none; border-radius:14px;
+    padding:16px 12px 14px; min-height:120px;
+    display:flex; flex-direction:column; justify-content:flex-end; gap:4px;
+    overflow:hidden; cursor:pointer; color:#fff; text-align:left;
+    transition:transform .15s, box-shadow .15s;
+  }
+  .mode-tile:hover{transform:translateY(-3px);}
+  .mode-tile .tile-icon{position:absolute;top:10px;right:12px;font-size:1.8rem;opacity:0.55;}
+  .mode-tile .tile-title{font-weight:800;font-size:1rem;text-shadow:0 1px 4px rgba(0,0,0,.4);}
+  .mode-tile .tile-sub{font-size:0.7rem;color:rgba(255,255,255,0.88);}
+  .tile-bot{background:linear-gradient(160deg,#ff3d5c,#5c0f22);}
+  .tile-2p{background:linear-gradient(160deg,#4da6ff,#0e3a66);}
+  .tile-free{background:linear-gradient(160deg,#6bd96b,#17401c);}
+  .tile-shop{background:linear-gradient(160deg,#ffcf3d,#6b4e0f);grid-column:span 2;min-height:70px;flex-direction:row;align-items:center;justify-content:flex-start;gap:10px;}
+  .tile-shop .tile-icon{position:static;opacity:0.9;font-size:1.5rem;}
+  .controls-hint{font-size:0.76rem;color:var(--muted);text-align:center;line-height:1.5;}
+
+  /* ---- shop ---- */
+  #shopPanel{width:780px;}
+  .shop-section-title{font-size:0.9rem;font-weight:700;color:var(--accent);margin-top:4px;}
+  .shop-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;max-height:220px;overflow-y:auto;padding-right:4px;}
+  .item-card{
+    background:var(--panel2); border-radius:12px; padding:12px;
+    display:flex; flex-direction:column; gap:6px; border:2px solid transparent;
+  }
+  .item-card.equipped{border-color:var(--accent);}
+  .item-head{display:flex;justify-content:space-between;align-items:center;}
+  .item-name{font-weight:700;font-size:0.9rem;}
+  .item-swatch{width:14px;height:14px;border-radius:50%;}
+  .stat-row{display:flex;align-items:center;gap:6px;font-size:0.68rem;color:var(--muted);}
+  .stat-bar{flex:1;height:5px;background:#1a1222;border-radius:4px;overflow:hidden;}
+  .stat-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));}
+  .item-foot{display:flex;justify-content:space-between;align-items:center;}
+  .item-price{font-size:0.76rem;color:var(--gold);}
+  .buy-btn{background:var(--accent-dim);color:#ffa8f0;border:none;padding:5px 10px;border-radius:8px;font-size:0.74rem;cursor:pointer;}
+  .buy-btn:disabled{opacity:0.4;cursor:default;}
+
+  .ghost-btn{background:var(--panel2);color:var(--text);border:none;padding:10px;border-radius:10px;cursor:pointer;font-size:0.85rem;}
+  .start-btn{
+    background:linear-gradient(90deg,var(--accent),var(--accent2));
+    color:#1a0f26; border:none; padding:12px; border-radius:10px;
+    font-weight:700; font-size:0.95rem; cursor:pointer; box-shadow:0 0 16px -4px var(--accent);
+  }
+
+  /* ---- game ---- */
+  #gameWrap{display:none;flex-direction:column;align-items:center;gap:10px;}
+  #hud{display:flex;justify-content:space-between;align-items:center;width:800px;gap:10px;}
+  .hud-side{flex:1;display:flex;flex-direction:column;gap:4px;}
+  .hud-side.right{align-items:flex-end;}
+  .hud-name{font-weight:700;font-size:0.9rem;}
+  .hp-bar{width:100%;height:12px;background:#1a1222;border-radius:7px;overflow:hidden;}
+  .hp-fill{height:100%;width:100%;transition:width .2s;}
+  #hudCenter{min-width:140px;text-align:center;font-weight:700;font-size:0.9rem;color:var(--muted);}
+  #pauseBtn{background:var(--panel2);color:var(--text);border:none;padding:6px 14px;border-radius:8px;cursor:pointer;font-size:0.85rem;}
+  #pauseBtn:hover{background:var(--accent-dim);}
+  #canvasHolder{position:relative;}
+  canvas{background:#1a1030;border-radius:12px;display:block;cursor:crosshair;}
+
+  #pauseOverlay, #endScreen{display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:#fff;}
+  #pauseOverlay{position:absolute;inset:0;background:rgba(10,6,16,0.8);border-radius:12px;}
+  #endScreen{background:var(--panel);padding:30px 40px;border-radius:16px;gap:10px;}
+  #endScreen h2{color:var(--accent);}
+  #endScreen .end-row{display:flex;gap:10px;}
+</style>
+</head>
+<body>
+
+<h1>Bow PvP</h1>
+
+<div class="panel" id="mainMenu">
+  <div class="coin-row">🪙 Xu hiện có <b id="coinDisplay">0</b></div>
+  <div class="menu-art"><div class="dash"></div><span>🏹</span><div class="dash"></div></div>
+  <div class="menu-grid">
+    <button class="mode-tile tile-bot" id="btnBot">
+      <span class="tile-icon">🤖</span>
+      <span class="tile-title">Đấu Bot</span>
+      <span class="tile-sub">Thắng +100 xu</span>
+    </button>
+    <button class="mode-tile tile-2p" id="btn2p">
+      <span class="tile-icon">🤝</span>
+      <span class="tile-title">2 Người</span>
+      <span class="tile-sub">Cùng 1 máy, luân phiên</span>
+    </button>
+    <button class="mode-tile tile-free" id="btnFree" style="grid-column:span 2;">
+      <span class="tile-icon">🎯</span>
+      <span class="tile-title">Bắn Bia (Tự Do)</span>
+      <span class="tile-sub">Trúng tâm = 10 xu/điểm, bắn thoải mái</span>
+    </button>
+    <button class="mode-tile tile-shop" id="btnShop">
+      <span class="tile-icon">🛒</span>
+      <span class="tile-title">Shop · <span id="equippedLabel">...</span></span>
+    </button>
+  </div>
+  <p class="controls-hint">Giữ chuột lên nhân vật rồi kéo ngược hướng muốn bắn, thả ra để bắn — kéo càng xa, lực càng mạnh. Esc để tạm dừng.</p>
+</div>
+
+<div class="panel" id="shopPanel" style="display:none;">
+  <div class="coin-row">🪙 Xu hiện có <b id="coinDisplayShop">0</b></div>
+  <p class="shop-section-title">Cung</p>
+  <div class="shop-grid" id="bowGrid"></div>
+  <p class="shop-section-title">Mũi tên</p>
+  <div class="shop-grid" id="arrowGrid"></div>
+  <button class="ghost-btn" id="shopBackBtn">← Quay lại</button>
+</div>
+
+<div id="gameWrap">
+  <div id="hud">
+    <div class="hud-side">
+      <span class="hud-name" style="color:var(--p1)" id="p1NameLabel">P1</span>
+      <div class="hp-bar"><div class="hp-fill" id="p1Hp" style="background:var(--p1)"></div></div>
+    </div>
+    <div id="hudCenter">—</div>
+    <div class="hud-side right">
+      <span class="hud-name" style="color:var(--p2)" id="p2NameLabel">P2</span>
+      <div class="hp-bar"><div class="hp-fill" id="p2Hp" style="background:var(--p2)"></div></div>
+    </div>
+    <button id="pauseBtn">Tạm dừng (Esc)</button>
+  </div>
+  <div id="canvasHolder">
+    <canvas id="canvas" width="800" height="440"></canvas>
+    <div id="pauseOverlay">
+      <h3 style="font-size:1.3rem;">Tạm dừng</h3>
+      <button class="start-btn" id="resumeBtn">Tiếp tục</button>
+      <button class="ghost-btn" id="quitBtn" style="width:160px;">Thoát ra menu</button>
+    </div>
+  </div>
+</div>
+
+<div id="endScreen">
+  <h2 id="endTitle"></h2>
+  <p id="endSub" style="color:var(--muted);font-size:0.9rem;"></p>
+  <div class="end-row">
+    <button class="start-btn" id="retryBtn">Chơi lại</button>
+    <button class="ghost-btn" id="toMenuBtn">Về menu</button>
+  </div>
+</div>
+
+<script>
+const mainMenu = document.getElementById("mainMenu");
+const shopPanel = document.getElementById("shopPanel");
+const gameWrap = document.getElementById("gameWrap");
+const endScreen = document.getElementById("endScreen");
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+
+// ---------------- persistence ----------------
+const SAVE_KEY = "bowpvp_save_v1";
+function loadSave(){
+  try{
+    const s = JSON.parse(localStorage.getItem(SAVE_KEY));
+    if(s && s.ownedBows) return s;
+  }catch(e){}
+  return { coins:0, ownedBows:["stone"], ownedArrows:["normal"], equippedBow:"stone", equippedArrow:"normal" };
+}
+let save = loadSave();
+function persist(){ try{ localStorage.setItem(SAVE_KEY, JSON.stringify(save)); }catch(e){} }
+
+// ---------------- items ----------------
+const BOWS = [
+  { id:"stone",    name:"Cung Đá",            price:0,    power:1.00, spread:3.0, color:"#9a9aa0" },
+  { id:"wood",     name:"Cung Gỗ",            price:1000, power:1.08, spread:2.6, color:"#b8824a" },
+  { id:"bronze",   name:"Cung Đồng",          price:1500, power:1.15, spread:2.3, color:"#cd7f32" },
+  { id:"iron",     name:"Cung Sắt",           price:2200, power:1.25, spread:2.0, color:"#c0c0c8" },
+  { id:"diamond",  name:"Cung Kim Cương",     price:3000, power:1.35, spread:1.6, color:"#5fe0e0" },
+  { id:"obsidian", name:"Cung Hắc Diện Thạch",price:4000, power:1.45, spread:1.3, color:"#4a2d6b" },
+  { id:"angel",    name:"Cung Thiên Thần",    price:5200, power:1.50, spread:1.0, color:"#fff4c0", lifesteal:0.08 },
+  { id:"demon",    name:"Cung Ác Quỷ",        price:6000, power:1.65, spread:1.8, color:"#ff3d3d", dmgBonus:0.15 },
+];
+const ARROWS = [
+  { id:"normal",  name:"Mũi Tên Thường",          price:0,    dmg:10, color:"#c9b27c" },
+  { id:"iron",    name:"Mũi Tên Sắt",             price:1000, dmg:14, color:"#b7b7c0" },
+  { id:"poison",  name:"Mũi Tên Độc",             price:1800, dmg:8,  color:"#6bd96b", dot:{dmg:2,ticks:3} },
+  { id:"instant", name:"Mũi Tên Sát Thương Tức Thì",price:2600, dmg:20, color:"#ffe14d" },
+  { id:"magma",   name:"Mũi Tên Magma",           price:3500, dmg:16, color:"#ff6a2b", dot:{dmg:3,ticks:3} },
+];
+function bowById(id){ return BOWS.find(b=>b.id===id)||BOWS[0]; }
+function arrowById(id){ return ARROWS.find(a=>a.id===id)||ARROWS[0]; }
+
+// ---------------- sound ----------------
+let audioCtx=null;
+function ensureAudio(){
+  if(!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+  if(audioCtx.state==="suspended") audioCtx.resume();
+}
+function tone(freq,dur,type="sine",vol=0.12,delay=0){
+  if(!audioCtx) return;
+  const osc=audioCtx.createOscillator(), gain=audioCtx.createGain();
+  osc.type=type; osc.frequency.value=freq;
+  const t0=audioCtx.currentTime+delay;
+  gain.gain.setValueAtTime(vol,t0);
+  gain.gain.exponentialRampToValueAtTime(0.001,t0+dur);
+  osc.connect(gain); gain.connect(audioCtx.destination);
+  osc.start(t0); osc.stop(t0+dur);
+}
+function noiseBurst(dur,vol=0.18){
+  if(!audioCtx) return;
+  const bufferSize = audioCtx.sampleRate*dur;
+  const buffer = audioCtx.createBuffer(1,bufferSize,audioCtx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for(let i=0;i<bufferSize;i++) data[i]=(Math.random()*2-1)*(1-i/bufferSize);
+  const src = audioCtx.createBufferSource();
+  src.buffer = buffer;
+  const gain = audioCtx.createGain();
+  gain.gain.value = vol;
+  src.connect(gain); gain.connect(audioCtx.destination);
+  src.start();
+}
+const sfx = {
+  draw:   () => tone(260,0.08,"triangle",0.07),
+  release:() => { tone(520,0.06,"triangle",0.14); tone(300,0.07,"triangle",0.1,0.04); },
+  hitBody:() => { noiseBurst(0.15,0.2); tone(140,0.18,"sawtooth",0.14); },
+  hitTarget:() => { tone(760,0.08,"square",0.14); tone(1020,0.1,"square",0.12,0.06); },
+  bullseye:() => { tone(880,0.09,"square",0.15); tone(1180,0.1,"square",0.14,0.07); tone(1500,0.12,"square",0.12,0.14); },
+  miss:   () => tone(150,0.2,"sine",0.1),
+  coin:   () => { tone(880,0.07,"square",0.1); tone(1180,0.08,"square",0.1,0.06); },
+  buy:    () => { tone(520,0.08,"triangle",0.12); tone(760,0.1,"triangle",0.12,0.08); },
+  turn:   () => tone(440,0.06,"sine",0.08),
+  win:    () => { tone(660,0.1,"triangle",0.14); tone(880,0.1,"triangle",0.14,0.1); tone(1100,0.16,"triangle",0.14,0.2); },
+  lose:   () => { tone(440,0.16,"sawtooth",0.12); tone(260,0.26,"sawtooth",0.12,0.14); },
+  pause:  () => tone(320,0.08,"sine",0.1),
+  resume: () => tone(460,0.08,"sine",0.1),
+};
+
+// ---------------- menu wiring ----------------
+function refreshMenu(){
+  document.getElementById("coinDisplay").textContent = save.coins;
+  document.getElementById("equippedLabel").textContent = bowById(save.equippedBow).name + " + " + arrowById(save.equippedArrow).name;
+}
+refreshMenu();
+
+function renderShopGrid(container, items, owned, equippedId, onPick, statKey, statMax, statMin){
+  container.innerHTML = "";
+  items.forEach(it => {
+    const isOwned = owned.includes(it.id);
+    const isEq = equippedId===it.id;
+    const card = document.createElement("div");
+    card.className = "item-card"+(isEq?" equipped":"");
+    const statVal = Math.max(0,Math.min(100,((it[statKey]-statMin)/(statMax-statMin))*100));
+    card.innerHTML = `
+      <div class="item-head"><span class="item-name">${it.name}</span><span class="item-swatch" style="background:${it.color}"></span></div>
+      <div class="stat-row">${statKey==="power"?"Lực":"Sát thương"} <div class="stat-bar"><div class="stat-fill" style="width:${statVal}%"></div></div></div>
+      <div class="item-foot">
+        <span class="item-price">${it.price===0?"Mặc định":it.price+" xu"}</span>
+        <button class="buy-btn" data-id="${it.id}">${isEq?"Đang dùng":isOwned?"Dùng":"Mua"}</button>
+      </div>`;
+    const btn = card.querySelector(".buy-btn");
+    if(isEq) btn.disabled = true;
+    if(!isOwned && save.coins < it.price) btn.disabled = true;
+    btn.addEventListener("click", () => {
+      if(isOwned){ onPick(it.id); sfx.turn(); }
+      else if(save.coins>=it.price){ save.coins -= it.price; owned.push(it.id); onPick(it.id); sfx.buy(); }
+      persist(); renderShop(); refreshMenu();
+    });
+    container.appendChild(card);
+  });
+}
+function renderShop(){
+  document.getElementById("coinDisplayShop").textContent = save.coins;
+  renderShopGrid(document.getElementById("bowGrid"), BOWS, save.ownedBows, save.equippedBow,
+    id => save.equippedBow=id, "power", 1.65, 1.0);
+  renderShopGrid(document.getElementById("arrowGrid"), ARROWS, save.ownedArrows, save.equippedArrow,
+    id => save.equippedArrow=id, "dmg", 20, 8);
+}
+document.getElementById("btnShop").addEventListener("click", () => {
+  ensureAudio();
+  mainMenu.style.display="none"; shopPanel.style.display="flex"; renderShop();
+});
+document.getElementById("shopBackBtn").addEventListener("click", () => {
+  shopPanel.style.display="none"; mainMenu.style.display="flex"; refreshMenu();
+});
+
+// ---------------- game constants ----------------
+const GROUND_Y = 360;
+const GRAVITY = 0.018;
+const POS_SCALE = 0.06; // matches the *dt*0.06 used for every position update below
+const MAX_SPEED = 15;
+const MAX_DRAW = 170;
+const MAX_HP = 100;
+const P1_X = 130, P2_X = 670, TARGET_X = 650;
+const HIT_R = 24;
+
+let mode = "bot"; // bot | 2p | free
+let p1, p2, arrow, effects, particles;
+let turn = "p1";
+let running=false, paused=false, inputLocked=false, botTimer=0;
+let lastFrame=0, finished=false;
+let aiming=false, aimStart=null, aimCur=null;
+let freeEarned=0;
+
+function newFighter(x){
+  return { x, y:GROUND_Y, hp:MAX_HP, bow:bowById(save.equippedBow), arrow:arrowById(save.equippedArrow) };
+}
+
+function setupGame(selectedMode){
+  mode = selectedMode;
+  p1 = newFighter(P1_X);
+  p2 = newFighter(mode==="free" ? TARGET_X : P2_X);
+  arrow = null;
+  effects = [];
+  particles = [];
+  freeEarned = 0;
+  finished = false;
+  inputLocked = false;
+  turn = "p1";
+  aiming=false; aimStart=null; aimCur=null;
+
+  document.getElementById("p1NameLabel").textContent = "P1";
+  document.getElementById("p2NameLabel").textContent = mode==="bot" ? "Bot" : mode==="free" ? "Bia" : "P2";
+  document.getElementById("hud").style.visibility = "visible";
+  if(mode==="free"){
+    document.querySelectorAll(".hud-side").forEach(e=>e.style.display="none");
+  } else {
+    document.querySelectorAll(".hud-side").forEach(e=>e.style.display="flex");
+  }
+  updateHudBars();
+}
+
+function startGame(selectedMode){
+  ensureAudio();
+  setupGame(selectedMode);
+  mainMenu.style.display="none"; shopPanel.style.display="none"; endScreen.style.display="none";
+  gameWrap.style.display="flex";
+  document.getElementById("pauseOverlay").style.display="none";
+  document.getElementById("pauseBtn").textContent="Tạm dừng (Esc)";
+  running=true; paused=false; lastFrame=0;
+  requestAnimationFrame(loop);
+}
+document.getElementById("btnBot").addEventListener("click", () => startGame("bot"));
+document.getElementById("btn2p").addEventListener("click", () => startGame("2p"));
+document.getElementById("btnFree").addEventListener("click", () => startGame("free"));
+
+// ---------------- aiming input ----------------
+function canvasPos(e){
+  const rect = canvas.getBoundingClientRect();
+  return { x:(e.clientX-rect.left)*(canvas.width/rect.width), y:(e.clientY-rect.top)*(canvas.height/rect.height) };
+}
+canvas.addEventListener("mousedown", e => {
+  if(!running||paused||inputLocked||arrow) return;
+  if(mode!=="free" && turn!=="p1" && !(mode==="2p"&&turn==="p2")) return;
+  aiming = true;
+  aimStart = canvasPos(e);
+  aimCur = {...aimStart};
+  sfx.draw();
+});
+window.addEventListener("mousemove", e => {
+  if(!aiming) return;
+  aimCur = canvasPos(e);
+});
+window.addEventListener("mouseup", () => {
+  if(!aiming) return;
+  aiming=false;
+  const dx = aimStart.x-aimCur.x, dy = aimStart.y-aimCur.y;
+  const dist = Math.hypot(dx,dy);
+  if(dist < 14){ return; } // too small a pull, cancelled
+  fireArrow(turn==="p2"?p2:p1, turn, dx, dy, dist);
+});
+window.addEventListener("keydown", e => { if(e.code==="Escape") togglePause(); });
+
+function fireArrow(shooter, side, dx, dy, dist){
+  const drawAmt = Math.min(MAX_DRAW, dist);
+  const powerPct = drawAmt/MAX_DRAW;
+  const bow = shooter.bow;
+  let angle = Math.atan2(dy,dx);
+  const spreadRad = (bow.spread*Math.PI/180);
+  angle += (Math.random()*2-1)*spreadRad;
+  const speed = powerPct*MAX_SPEED*bow.power;
+  arrow = {
+    x: shooter.x, y: shooter.y-40,
+    vx: Math.cos(angle)*speed, vy: Math.sin(angle)*speed,
+    owner: side, trail:[]
+  };
+  sfx.release();
+  inputLocked = true;
+}
+
+// ---------------- bot AI ----------------
+function botTakeTurn(){
+  const dx0 = p1.x - p2.x; 
+  const dy0 = (p1.y - 40) - (p2.y - 40);
+  const dist = Math.hypot(dx0, dy0);
+
+  // Random góc bắn từ 32 đến 52 độ để tạo độ cong quỹ đạo đẹp mắt
+  const angleDeg = 32 + Math.random() * 20; 
+  const theta = angleDeg * Math.PI / 180;
+  const g = GRAVITY;
+
+  // Tính vận tốc cơ bản để bay về phía người chơi, kèm hệ số random lực (85% - 115%) để có lúc hụt lúc trúng
+  let speedNeeded = Math.sqrt(Math.abs(dx0 * g) / Math.sin(2 * theta)) || 9;
+  speedNeeded *= (0.85 + Math.random() * 0.3); 
+  speedNeeded = Math.min(MAX_SPEED * 1.2, speedNeeded);
+
+  const dirX = dx0 < 0 ? -1 : 1;
+  
+  // Thêm độ lệch góc (spread) vừa phải để bot không phải là "thánh hack"
+  const randomSpread = (Math.random() * 2 - 1) * (8 * Math.PI / 180); // Lệch tối đa 8 độ
+  const baseAng = -theta + randomSpread;
+
+  const vx = Math.cos(baseAng) * speedNeeded * dirX;
+  const vy = Math.sin(baseAng) * speedNeeded;
+
+  arrow = {
+    x: p2.x, y: p2.y - 40,
+    vx: vx, vy: vy,
+    owner: "p2", trail: []
+  };
+  sfx.release();
+  inputLocked = true;
+}
+
+// ---------------- target rings (free mode) ----------------
+const RINGS = [ {r:70,pts:2,color:"#2b6bdb"}, {r:55,pts:4,color:"#f3f3f3"}, {r:40,pts:6,color:"#2b6bdb"}, {r:24,pts:8,color:"#f3f3f3"}, {r:10,pts:10,color:"#ff3d5c"} ];
+
+function spawnHitParticles(x,y,color){
+  for(let i=0;i<16;i++){
+    const ang=Math.random()*Math.PI*2, spd=1+Math.random()*4;
+    particles.push({x,y,vx:Math.cos(ang)*spd,vy:Math.sin(ang)*spd,life:1,s:2+Math.random()*3,color});
+  }
+}
+
+// Called every frame while an arrow is in flight. Only resolves something
+// when the arrow actually reaches its target this frame — otherwise it
+// does nothing and lets the arrow keep flying (the out-of-bounds/ground
+// case is handled separately in update()).
+function advanceTurnAfterShot(){
+  turn = turn==="p1" ? "p2" : "p1";
+  sfx.turn();
+  if(mode==="bot" && turn==="p2"){
+    botTimer = 800+Math.random()*700;
+  } else {
+    setTimeout(()=>{ inputLocked=false; },250);
+  }
+}
+
+function resolveArrowHit(){
+  if(!arrow) return;
+
+  if(mode==="free"){
+    const tx=TARGET_X, ty=p2.y-70;
+    const d = Math.hypot(arrow.x-tx, arrow.y-ty);
+    const ring = RINGS.find(r => d<=r.r);
+    if(!ring) return; // still flying, hasn't reached the target yet
+    const gained = ring.pts*10;
+    freeEarned += gained;
+    save.coins += gained; persist();
+    ring.pts>=10 ? sfx.bullseye() : sfx.hitTarget();
+    spawnHitParticles(arrow.x,arrow.y, ring.pts>=10?"#ffd166":"#fff");
+    arrow=null;
+    setTimeout(()=>{ inputLocked=false; },300);
+    return;
+  }
+
+  // combat modes
+  const shooterSide = arrow.owner;
+  const target = shooterSide==="p1" ? p2 : p1;
+  const d = Math.hypot(arrow.x-target.x, arrow.y-(target.y-40));
+  if(d >= HIT_R) return; // still flying, hasn't reached the opponent yet
+
+  const shooter = shooterSide==="p1" ? p1 : p2;
+  let dmg = shooter.arrow.dmg;
+  if(shooter.bow.dmgBonus) dmg *= (1+shooter.bow.dmgBonus);
+  target.hp = Math.max(0, target.hp-dmg);
+  if(shooter.bow.lifesteal) shooter.hp = Math.min(MAX_HP, shooter.hp+dmg*shooter.bow.lifesteal);
+  if(shooter.arrow.dot){
+    effects.push({ target, dmgPerTick:shooter.arrow.dot.dmg, ticksLeft:shooter.arrow.dot.ticks, nextTick:900, color:shooter.arrow.color });
+  }
+  sfx.hitBody();
+  spawnHitParticles(arrow.x,arrow.y,"#ff5050");
+  updateHudBars();
+  arrow=null;
+  if(target.hp<=0){ finished=true; endCombat(shooterSide); return; }
+  advanceTurnAfterShot();
+}
+
+// ---------------- update / draw ----------------
+function updateHudBars(){
+  document.getElementById("p1Hp").style.width = p1.hp+"%";
+  document.getElementById("p2Hp").style.width = p2.hp+"%";
+}
+
+function update(dt){
+  if(mode==="bot" && turn==="p2" && !arrow && inputLocked){
+    botTimer -= dt;
+    if(botTimer<=0){ botTakeTurn(); }
+  }
+
+  if(arrow){
+    arrow.trail.push({x:arrow.x,y:arrow.y});
+    if(arrow.trail.length>6) arrow.trail.shift();
+    arrow.x += arrow.vx*dt*0.06;
+    arrow.y += arrow.vy*dt*0.06;
+    arrow.vy += GRAVITY*dt;
+    if(arrow.y>GROUND_Y+20 || arrow.x<-20 || arrow.x>canvas.width+20){
+      spawnHitParticles(Math.max(0,Math.min(canvas.width,arrow.x)), GROUND_Y, "rgba(180,160,140,0.6)");
+      sfx.miss();
+      arrow=null;
+      if(mode!=="free"){ advanceTurnAfterShot(); }
+      else { setTimeout(()=>{inputLocked=false;},250); }
+    } else {
+      resolveArrowHit();
+    }
+  }
+
+  effects.forEach(ef => {
+    ef.nextTick -= dt;
+    if(ef.nextTick<=0 && ef.ticksLeft>0){
+      ef.target.hp = Math.max(0, ef.target.hp-ef.dmgPerTick);
+      ef.ticksLeft--; ef.nextTick=900;
+      updateHudBars();
+      spawnHitParticles(ef.target.x, ef.target.y-40, ef.color);
+      if(ef.target.hp<=0 && !finished){ finished=true; endCombat(ef.target===p1?"p2":"p1"); }
+    }
+  });
+  effects = effects.filter(ef => ef.ticksLeft>0 && !finished);
+
+  particles.forEach(p => { p.x+=p.vx*dt*0.06; p.y+=p.vy*dt*0.06; p.vy+=0.01*dt; p.life-=dt*0.0018; });
+  particles = particles.filter(p=>p.life>0);
+}
+
+function draw(){
+  // sky
+  const g = ctx.createLinearGradient(0,0,0,canvas.height);
+  g.addColorStop(0,"#1c1030"); g.addColorStop(0.6,"#2c1640"); g.addColorStop(1,"#241433");
+  ctx.fillStyle=g; ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  // distant hills
+  ctx.fillStyle="rgba(157,78,221,0.25)";
+  ctx.beginPath(); ctx.moveTo(0,300);
+  for(let x=0;x<=canvas.width;x+=40) ctx.lineTo(x,300-Math.sin(x*0.01)*18-10);
+  ctx.lineTo(canvas.width,340); ctx.lineTo(0,340); ctx.closePath(); ctx.fill();
+
+  // ground
+  ctx.fillStyle="#2a1f3a"; ctx.fillRect(0,GROUND_Y,canvas.width,canvas.height-GROUND_Y);
+  ctx.strokeStyle="rgba(255,255,255,0.05)";
+  for(let x=0;x<canvas.width;x+=24){ ctx.beginPath(); ctx.moveTo(x,GROUND_Y); ctx.lineTo(x+8,canvas.height); ctx.stroke(); }
+
+  // torches
+  drawTorch(60);
+  drawTorch(canvas.width-60);
+
+  if(mode==="free"){
+    drawFighter(p1, "#4da6ff", true);
+    drawTargetStand(TARGET_X, GROUND_Y-70);
+  } else {
+    drawFighter(p1, "#4da6ff", turn==="p1" && !inputLocked);
+    drawFighter(p2, "#ff2fd6", turn==="p2" && (mode==="bot" || !inputLocked));
+  }
+
+  // aim line while dragging
+  if(aiming && aimStart && aimCur){
+    const shooter = turn==="p2"?p2:p1;
+    ctx.strokeStyle="rgba(255,255,255,0.5)"; ctx.lineWidth=2; ctx.setLineDash([5,5]);
+    ctx.beginPath(); ctx.moveTo(shooter.x, shooter.y-40); ctx.lineTo(shooter.x+(aimStart.x-aimCur.x), (shooter.y-40)+(aimStart.y-aimCur.y)); ctx.stroke();
+    ctx.setLineDash([]);
+    const pow = Math.min(1, Math.hypot(aimStart.x-aimCur.x, aimStart.y-aimCur.y)/MAX_DRAW);
+    ctx.fillStyle = `rgba(255,${255-pow*150},80,0.9)`;
+    ctx.beginPath(); ctx.arc(aimCur.x,aimCur.y,6,0,Math.PI*2); ctx.fill();
+  }
+
+  // arrow
+  if(arrow){
+    arrow.trail.forEach((t,i)=>{
+      ctx.globalAlpha = (i/arrow.trail.length)*0.3;
+      ctx.fillStyle="#ffd166";
+      ctx.beginPath(); ctx.arc(t.x,t.y,2,0,Math.PI*2); ctx.fill();
+    });
+    ctx.globalAlpha=1;
+    ctx.save();
+    ctx.translate(arrow.x,arrow.y);
+    ctx.rotate(Math.atan2(arrow.vy,arrow.vx));
+    const owner = arrow.owner==="p1"?p1:p2;
+    ctx.strokeStyle = owner.arrow.color; ctx.lineWidth=3;
+    ctx.beginPath(); ctx.moveTo(-14,0); ctx.lineTo(10,0); ctx.stroke();
+    ctx.fillStyle="#ddd";
+    ctx.beginPath(); ctx.moveTo(10,0); ctx.lineTo(4,-3); ctx.lineTo(4,3); ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+
+  particles.forEach(p=>{
+    ctx.globalAlpha=Math.max(p.life,0);
+    ctx.fillStyle=p.color;
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.s,0,Math.PI*2); ctx.fill();
+  });
+  ctx.globalAlpha=1;
+}
+
+function drawTorch(x){
+  ctx.strokeStyle="#5a3d28"; ctx.lineWidth=5;
+  ctx.beginPath(); ctx.moveTo(x,GROUND_Y); ctx.lineTo(x,GROUND_Y-70); ctx.stroke();
+  const flick = 0.7+Math.random()*0.5;
+  const fg = ctx.createRadialGradient(x,GROUND_Y-78,2,x,GROUND_Y-78,16*flick);
+  fg.addColorStop(0,"rgba(255,220,120,0.9)"); fg.addColorStop(0.6,"rgba(255,140,40,0.6)"); fg.addColorStop(1,"rgba(255,60,30,0)");
+  ctx.fillStyle=fg;
+  ctx.beginPath(); ctx.arc(x,GROUND_Y-78,16*flick,0,Math.PI*2); ctx.fill();
+}
+
+function drawTargetStand(x,y){
+  ctx.strokeStyle="#5a3d28"; ctx.lineWidth=6;
+  ctx.beginPath(); ctx.moveTo(x,GROUND_Y); ctx.lineTo(x,y); ctx.stroke();
+  RINGS.slice().reverse().forEach(r => {
+    ctx.fillStyle=r.color;
+    ctx.beginPath(); ctx.arc(x,y,r.r,0,Math.PI*2); ctx.fill();
+  });
+  ctx.strokeStyle="#1a1222"; ctx.lineWidth=2;
+  RINGS.forEach(r=>{ ctx.beginPath(); ctx.arc(x,y,r.r,0,Math.PI*2); ctx.stroke(); });
+}
+
+function drawFighter(f,color,active,isBotTurnIndicator){
+  ctx.save();
+  ctx.translate(f.x,f.y);
+  if(active){
+    ctx.fillStyle="rgba(255,255,255,0.12)";
+    ctx.beginPath(); ctx.ellipse(0,0,26,8,0,0,Math.PI*2); ctx.fill();
+  }
+  ctx.strokeStyle=color; ctx.lineWidth=5; ctx.lineCap="round";
+  ctx.beginPath(); ctx.moveTo(-10,0); ctx.lineTo(0,-30); ctx.lineTo(10,0); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0,-30); ctx.lineTo(0,-60); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0,-54); ctx.lineTo(f.x<400?16:-16,-60); ctx.stroke();
+  ctx.fillStyle=color;
+  ctx.beginPath(); ctx.arc(0,-70,9,0,Math.PI*2); ctx.fill();
+  // bow
+  ctx.strokeStyle=f.bow?f.bow.color:"#aaa"; ctx.lineWidth=3;
+  const bx = f.x<400?18:-18;
+  ctx.beginPath(); ctx.arc(bx,-50,16,f.x<400?-1.2:Math.PI-1.9, f.x<400?1.2:Math.PI+1.9); ctx.stroke();
+  ctx.restore();
+}
+
+function loop(ts){
+  if(!running||paused) return;
+  const dt = lastFrame?ts-lastFrame:16;
+  lastFrame=ts;
+  update(dt);
+  draw();
+  document.getElementById("hudCenter").textContent =
+    mode==="free" ? `🪙 +${freeEarned} xu` :
+    finished ? "" :
+    (turn==="p1" ? "Lượt của: P1" : (mode==="bot" ? "Bot đang ngắm..." : "Lượt của: P2"));
+  requestAnimationFrame(loop);
+}
+
+function endCombat(winnerSide){
+  running=false; paused=false;
+  setTimeout(()=>{
+    gameWrap.style.display="none";
+    endScreen.style.display="flex";
+    if(mode==="bot"){
+      if(winnerSide==="p1"){
+        save.coins+=100; persist(); refreshMenu();
+        sfx.win();
+        document.getElementById("endTitle").textContent="Bạn thắng! +100 xu";
+        document.getElementById("endSub").textContent="Xu hiện có: "+save.coins;
+      } else {
+        sfx.lose();
+        document.getElementById("endTitle").textContent="Bạn thua!";
+        document.getElementById("endSub").textContent="Bot bắn chuẩn hơn — thử lại nào.";
+      }
+    } else {
+      sfx.win();
+      document.getElementById("endTitle").textContent=(winnerSide==="p1"?"Player 1":"Player 2")+" thắng!";
+      document.getElementById("endSub").textContent="Trận đấu kết thúc.";
+    }
+  },500);
+}
+
+function togglePause(){
+  if(!running) return;
+  paused=!paused;
+  document.getElementById("pauseOverlay").style.display=paused?"flex":"none";
+  document.getElementById("pauseBtn").textContent=paused?"Tiếp tục (Esc)":"Tạm dừng (Esc)";
+  sfx[paused?"pause":"resume"]();
+  if(!paused){ lastFrame=0; requestAnimationFrame(loop); }
+}
+document.getElementById("pauseBtn").addEventListener("click", togglePause);
+document.getElementById("resumeBtn").addEventListener("click", togglePause);
+
+function quitToMenu(){
+  running=false; paused=false;
+  document.getElementById("pauseOverlay").style.display="none";
+  gameWrap.style.display="none"; endScreen.style.display="none";
+  mainMenu.style.display="flex"; refreshMenu();
+}
+document.getElementById("quitBtn").addEventListener("click", quitToMenu);
+document.getElementById("toMenuBtn").addEventListener("click", quitToMenu);
+document.getElementById("retryBtn").addEventListener("click", () => startGame(mode));
+</script>
+
+</body>
+</html>
