@@ -58,6 +58,8 @@
     cursor:pointer;
     box-shadow:0 0 16px -4px var(--accent);
   }
+  .mode-row{display:flex;gap:10px;}
+  .mode-row .start-btn{flex:1;margin-top:0;}
   .choice-btn{
     background:var(--panel2);
     border:none;
@@ -77,7 +79,7 @@
     width:800px;
     font-size:0.9rem;
   }
-  .hp-row{display:flex;align-items:center;gap:6px;}
+  .hp-row{display:flex;align-items:center;gap:6px;min-width:150px;}
   .hp-row b{font-size:0.85rem;}
   .hp-icon{font-size:1rem;opacity:1;transition:opacity .2s;}
   .hp-icon.lost{opacity:0.15;}
@@ -143,12 +145,16 @@
 
 <div class="panel" id="setup">
   <p class="controls-hint">
-    <b style="color:var(--p1)">Player 1:</b> WASD để né &nbsp;·&nbsp;
-    <b style="color:var(--p2)">Player 2:</b> phím mũi tên để né<br><br>
+    <b style="color:var(--p1)">1 người:</b> WASD hoặc phím mũi tên để né<br>
+    <b style="color:var(--p1)">2 người:</b> P1 dùng WASD &nbsp;·&nbsp; <b style="color:var(--p2)">P2</b> dùng phím mũi tên<br><br>
     Mỗi màn kéo dài 100 giây, càng lên màn thiên thạch càng nhiều và nhanh hơn.<br>
-    Ai bị thiên thạch rơi trúng đủ <b>5 lần</b> trước là thua ngay.
+    Bị thiên thạch rơi trúng đủ <b>5 lần</b> là thua (chế độ 2 người: ai bị trước thì người kia thắng).
   </p>
-  <button class="start-btn" id="startBtn">Bắt đầu</button>
+  <div class="mode-row">
+    <button class="start-btn" id="start1Btn">1 Người chơi</button>
+    <button class="start-btn" id="start2Btn">2 Người chơi</button>
+  </div>
+  <p class="controls-hint" id="bestRecord"></p>
 </div>
 
 <div id="gameWrap">
@@ -174,8 +180,9 @@
 
 <div id="endScreen">
   <h2 id="endTitle"></h2>
-  <p id="endSub" style="color:var(--muted);font-size:0.9rem;"></p>
+  <p id="endSub" style="color:var(--muted);font-size:0.9rem;text-align:center;line-height:1.5;"></p>
   <button class="start-btn" id="restartBtn">Chơi lại</button>
+  <button class="choice-btn" id="menuBtn">Về menu</button>
 </div>
 
 <script>
@@ -227,12 +234,17 @@ const sfx = {
 };
 
 // ---- players ----
+// Mỗi hướng là 1 mảng phím, để chế độ 1 người dùng được cả WASD lẫn mũi tên
 const CONTROL_SETS = [
-  { up:"w", down:"s", left:"a", right:"d" },
-  { up:"arrowup", down:"arrowdown", left:"arrowleft", right:"arrowright" },
+  { up:["w"], down:["s"], left:["a"], right:["d"] },
+  { up:["arrowup"], down:["arrowdown"], left:["arrowleft"], right:["arrowright"] },
 ];
-const ALL_MOVE_KEYS = new Set(CONTROL_SETS.flatMap(c => Object.values(c)));
+const SOLO_CONTROLS = {
+  up:["w","arrowup"], down:["s","arrowdown"], left:["a","arrowleft"], right:["d","arrowright"]
+};
+const ALL_MOVE_KEYS = new Set(CONTROL_SETS.flatMap(c => Object.values(c).flat()));
 let keys = {};
+function isDown(list){ return list.some(k => keys[k]); }
 
 window.addEventListener("keydown", e => {
   const k = e.key.toLowerCase();
@@ -243,10 +255,31 @@ window.addEventListener("keydown", e => {
 window.addEventListener("keyup", e => { keys[e.key.toLowerCase()] = false; });
 
 let players, meteors, particles, stars;
+let mode = 2;                 // 1 = một người, 2 = hai người
+let elapsed = 0;              // số giây đã sống sót (chế độ 1 người)
 let level = 1, levelTime = 100, levelInterval = null;
 let running = false, paused = false, inBanner = false;
 let spawnTimer = 0, lastFrame = 0;
 let shake = 0;
+let bannerTimeout = null;
+
+// ---- kỷ lục chế độ 1 người (lưu trên trình duyệt) ----
+const BEST_KEY = "dodge-meteorite-best-solo";
+function loadBest(){
+  try{
+    const raw = localStorage.getItem(BEST_KEY);
+    return raw ? JSON.parse(raw) : null;
+  }catch(e){ return null; }
+}
+function saveBest(rec){
+  try{ localStorage.setItem(BEST_KEY, JSON.stringify(rec)); }catch(e){}
+}
+function showBestRecord(){
+  const best = loadBest();
+  document.getElementById("bestRecord").textContent =
+    best ? `Kỷ lục 1 người: ${best.time} giây (Màn ${best.level})` : "";
+}
+showBestRecord();
 
 function makeStars(){
   stars = [];
@@ -256,13 +289,20 @@ function makeStars(){
 }
 
 function resetAll(){
-  players = [
-    { id:0, name:"P1", color:"#4da6ff", x:260, y:460, r:16, controls:CONTROL_SETS[0], hits:0, invuln:0 },
-    { id:1, name:"P2", color:"#ff2fd6", x:540, y:460, r:16, controls:CONTROL_SETS[1], hits:0, invuln:0 },
-  ];
+  if(mode === 1){
+    players = [
+      { id:0, name:"P1", color:"#4da6ff", x:400, y:460, r:16, controls:SOLO_CONTROLS, hits:0, invuln:0 },
+    ];
+  } else {
+    players = [
+      { id:0, name:"P1", color:"#4da6ff", x:260, y:460, r:16, controls:CONTROL_SETS[0], hits:0, invuln:0 },
+      { id:1, name:"P2", color:"#ff2fd6", x:540, y:460, r:16, controls:CONTROL_SETS[1], hits:0, invuln:0 },
+    ];
+  }
   meteors = [];
   particles = [];
   level = 1;
+  elapsed = 0;
   spawnTimer = 0;
   shake = 0;
   makeStars();
@@ -293,7 +333,8 @@ function showLevelBanner(title, sub){
   levelBanner.querySelector("p").textContent = sub;
   levelBanner.style.display = "flex";
   sfx.levelUp();
-  setTimeout(() => {
+  clearTimeout(bannerTimeout);
+  bannerTimeout = setTimeout(() => {
     levelBanner.style.display = "none";
     inBanner = false;
     lastFrame = 0;
@@ -302,8 +343,7 @@ function showLevelBanner(title, sub){
 }
 
 function updateHpHud(){
-  [0,1].forEach(i => {
-    const p = players[i];
+  players.forEach((p,i) => {
     const box = document.getElementById("hp"+(i+1));
     let html = `<b style="color:${p.color}">${p.name}</b> `;
     for(let j=0;j<5;j++){
@@ -311,6 +351,11 @@ function updateHpHud(){
     }
     box.innerHTML = html;
   });
+  // chế độ 1 người: ô bên phải hiển thị thời gian sống sót
+  if(mode === 1){
+    document.getElementById("hp2").innerHTML =
+      `<b style="color:var(--muted)">Sống sót: <span id="survTime">${elapsed}</span>s</b>`;
+  }
 }
 
 function spawnMeteor(){
@@ -347,10 +392,10 @@ function update(dt){
   // players movement
   players.forEach(p => {
     let dx=0, dy=0;
-    if(keys[p.controls.up]) dy -= 1;
-    if(keys[p.controls.down]) dy += 1;
-    if(keys[p.controls.left]) dx -= 1;
-    if(keys[p.controls.right]) dx += 1;
+    if(isDown(p.controls.up)) dy -= 1;
+    if(isDown(p.controls.down)) dy += 1;
+    if(isDown(p.controls.left)) dx -= 1;
+    if(isDown(p.controls.right)) dx += 1;
     if(dx||dy){ const len=Math.hypot(dx,dy); dx/=len; dy/=len; }
     const sp = 0.26*dt;
     p.x = Math.max(p.r, Math.min(canvas.width-p.r, p.x+dx*sp));
@@ -484,6 +529,9 @@ function startLevelTimer(){
   levelInterval = setInterval(() => {
     if(paused || !running || inBanner) return;
     levelTime--;
+    elapsed++;
+    const surv = document.getElementById("survTime");
+    if(mode === 1 && surv) surv.textContent = elapsed;
     document.getElementById("levelTimer").textContent = levelTime;
     if(levelTime<=5 && levelTime>0) sfx.tick();
     if(levelTime<=0){
@@ -496,11 +544,23 @@ function startLevelTimer(){
 function triggerGameOver(loserPlayer){
   running = false; paused = false;
   clearInterval(levelInterval);
+  clearTimeout(bannerTimeout);
   gameWrap.style.display = "none";
   endScreen.style.display = "flex";
-  const winner = players.find(p => p !== loserPlayer);
-  document.getElementById("endTitle").textContent = `${winner.name} thắng!`;
-  document.getElementById("endSub").textContent = `${loserPlayer.name} bị trúng đủ 5 lần ở Màn ${level}.`;
+
+  if(mode === 1){
+    const best = loadBest();
+    const isRecord = !best || elapsed > best.time;
+    if(isRecord) saveBest({ time: elapsed, level });
+    document.getElementById("endTitle").textContent = "Game Over";
+    document.getElementById("endSub").innerHTML =
+      `Bạn sống sót ${elapsed} giây, đến Màn ${level}.<br>` +
+      (isRecord ? "🏆 Kỷ lục mới!" : `Kỷ lục: ${best.time} giây (Màn ${best.level})`);
+  } else {
+    const winner = players.find(p => p !== loserPlayer);
+    document.getElementById("endTitle").textContent = `${winner.name} thắng!`;
+    document.getElementById("endSub").textContent = `${loserPlayer.name} bị trúng đủ 5 lần ở Màn ${level}.`;
+  }
   sfx.over();
 }
 
@@ -516,18 +576,24 @@ document.getElementById("pauseBtn").addEventListener("click", togglePause);
 document.getElementById("resumeBtn").addEventListener("click", togglePause);
 
 function quitToMenu(){
-  running = false; paused = false;
+  running = false; paused = false; inBanner = false;
   clearInterval(levelInterval);
+  clearTimeout(bannerTimeout);
+  levelBanner.style.display = "none";
   document.getElementById("pauseOverlay").style.display = "none";
   gameWrap.style.display = "none";
   endScreen.style.display = "none";
   setupPanel.style.display = "flex";
+  showBestRecord();
 }
 document.getElementById("quitBtn").addEventListener("click", quitToMenu);
+document.getElementById("menuBtn").addEventListener("click", quitToMenu);
 
-document.getElementById("startBtn").addEventListener("click", () => {
+function startGame(m){
+  mode = m;
   ensureAudio();
   sfx.start();
+  clearTimeout(bannerTimeout);
   setupPanel.style.display = "none";
   gameWrap.style.display = "flex";
   endScreen.style.display = "none";
@@ -538,11 +604,12 @@ document.getElementById("startBtn").addEventListener("click", () => {
   startLevel(1);
   requestAnimationFrame(loop);
   startLevelTimer();
-});
-document.getElementById("restartBtn").addEventListener("click", () => {
-  endScreen.style.display = "none";
-  setupPanel.style.display = "flex";
-});
+}
+
+document.getElementById("start1Btn").addEventListener("click", () => startGame(1));
+document.getElementById("start2Btn").addEventListener("click", () => startGame(2));
+// "Chơi lại" bắt đầu lại đúng chế độ vừa chơi
+document.getElementById("restartBtn").addEventListener("click", () => startGame(mode));
 </script>
 
 </body>
