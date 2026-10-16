@@ -107,7 +107,7 @@ h2{font-size:1.5rem;color:var(--gold)}
 <script>
 'use strict';
 /* =================== HẰNG SỐ & TIỆN ÍCH =================== */
-const WOLF_MIN=.78,WOLF_MAX=1.40,WOLF_MEAN=(WOLF_MIN+WOLF_MAX)/2;
+const WOLF_MEAN=1.14; // tốc độ trung bình của sói so với tốc độ gốc của màn (có lúc chạy nước rút)
 const W=960,H=540,GROUND=430,BASE_SPEED=240,JUMP=820,GRAV=2600,MAX_LEVEL=70;
 const cv=document.getElementById('c'),ctx=cv.getContext('2d');
 const $=id=>document.getElementById(id);
@@ -134,13 +134,13 @@ function persist(){try{localStorage.setItem(SAVE_KEY,JSON.stringify(save));}catc
 /* =================== GIÀY =================== */
 const SHOES=[
  {id:'none',name:'Chân trần',bonus:0,price:0,c1:'#e6b98a',c2:'#c98f5f'},
- {id:'da',name:'Giày da',bonus:115,price:1200,c1:'#9a6030',c2:'#5e3b1a'},
- {id:'sat',name:'Giày sắt',bonus:245,price:4800,c1:'#aab3bd',c2:'#5d6670'},
- {id:'dong',name:'Giày đồng',bonus:385,price:12000,c1:'#e0914f',c2:'#a35a24'},
- {id:'kc',name:'Giày kim cương',bonus:530,price:19000,c1:'#8df5ff',c2:'#2bb7d6',glow:'#7df3ff'},
- {id:'hdt',name:'Giày hắc diện thạch',bonus:695,price:28000,c1:'#2c2c40',c2:'#0b0b14',glow:'#9b5cff'},
- {id:'quy',name:'Giày ác quỷ',bonus:875,price:36000,c1:'#c1121f',c2:'#6b0b12',glow:'#ff3b30'},
- {id:'tt',name:'Giày thiên thần',bonus:1080,price:48000,c1:'#fff6c2',c2:'#ffd166',glow:'#fff2a6'},
+ {id:'da',name:'Giày da',bonus:120,price:1200,c1:'#9a6030',c2:'#5e3b1a'},
+ {id:'sat',name:'Giày sắt',bonus:270,price:4800,c1:'#aab3bd',c2:'#5d6670'},
+ {id:'dong',name:'Giày đồng',bonus:425,price:12000,c1:'#e0914f',c2:'#a35a24'},
+ {id:'kc',name:'Giày kim cương',bonus:575,price:19000,c1:'#8df5ff',c2:'#2bb7d6',glow:'#7df3ff'},
+ {id:'hdt',name:'Giày hắc diện thạch',bonus:775,price:28000,c1:'#2c2c40',c2:'#0b0b14',glow:'#9b5cff'},
+ {id:'quy',name:'Giày ác quỷ',bonus:965,price:36000,c1:'#c1121f',c2:'#6b0b12',glow:'#ff3b30'},
+ {id:'tt',name:'Giày thiên thần',bonus:1170,price:48000,c1:'#fff6c2',c2:'#ffd166',glow:'#fff2a6'},
 ];
 const curShoe=()=>SHOES.find(s=>s.id===save.shoe)||SHOES[0];
 const playerSpeed=()=>BASE_SPEED+curShoe().bonus;
@@ -266,11 +266,11 @@ function renderShop(){
 }
 
 /* =================== CẤU HÌNH MÀN =================== */
-const WOLF_BASE=(()=>{const r=mulberry32(20261016),a=[0,215];for(let L=2;L<=MAX_LEVEL;L++)a[L]=a[L-1]+8+Math.floor(r()*13);return a;})(); // mỗi màn sói tăng 8-20 sức chạy
+const WOLF_BASE=(()=>{const r=mulberry32(20261016),a=[0,195];for(let L=2;L<=MAX_LEVEL;L++)a[L]=a[L-1]+8+Math.floor(r()*13);return a;})(); // mỗi màn sói tăng 8-20 sức chạy
 function levelCfg(L){
   const wolf=WOLF_BASE[L],wolfAvg=wolf*WOLF_MEAN,ref=wolfAvg*1.02,tg=lerp(1.75,.42,(L-1)/(MAX_LEVEL-1));
   const gapMin=Math.max(200,ref*tg);
-  return{length:3000+(L-1)*1000,wolf,wolfAvg,clicks:3+Math.floor((L-1)/10),gapMin,gapMax:gapMin+wolfAvg*1.17,reward:400+L*90,coinVal:6+Math.floor(L*1.1)};
+  return{length:3000+(L-1)*1000,wolf,wolfAvg,clicks:3+Math.floor((L-1)/10),gapMin,gapMax:gapMin+wolfAvg*1.17,reward:500+L*90,coinVal:6+Math.floor(L*1.1)};
 }
 const THEMES=[
  {name:'Rừng hoàng hôn',sky:['#ffb36b','#7a3f86'],ground:'#4a7a42',ground2:'#2b4a29',tree:'#1f4a2a',tree2:'#2d6a38',far:'#6b3f7f',sun:'#ffe2a8',stars:false,amb:null},
@@ -452,9 +452,10 @@ function updChase(dt){
   // sói
   wolf.vtimer-=dt;
   if(wolf.vtimer<=0){
-    wolf.vtimer=.7+Math.random()*1.6;
-    wolf.vt=cfg.wolf*(WOLF_MIN+Math.random()*(WOLF_MAX-WOLF_MIN));
-    if(wolf.vt>cfg.wolf*1.25){SFX.growl();floatText(wolf.x+90,GROUND-150,'Sói tăng tốc!','#ff6b6b');}
+    const sprint=Math.random()<.28; // thỉnh thoảng sói nước rút, có lúc ngang hoặc nhanh hơn người chơi
+    wolf.vtimer=sprint?.9+Math.random()*.9:1.2+Math.random()*1.4;
+    wolf.vt=cfg.wolf*(sprint?1.4+Math.random()*.4:.8+Math.random()*.42);
+    if(sprint){SFX.growl();floatText(wolf.x+90,GROUND-150,'Sói tăng tốc!','#ff6b6b');}
   }
   wolf.v+=(wolf.vt-wolf.v)*Math.min(1,dt*3);
   wolf.burst=wolf.v>cfg.wolf*1.2;
