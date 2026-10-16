@@ -1,9 +1,9 @@
 <!DOCTYPE html>
- <html lang="vi">
-  <head>
+<html lang="vi">
+<head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Steal a Wolf Egg</title>
+<title>Steal a Wolf Egg</title>
 <style>
 :root{--line:#3a2b5e;--gold:#ffd166;--pink:#ff5d8f;--text:#f3ecff;--mut:#a99cc9;--ok:#5ee6a0}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -270,7 +270,7 @@ const WOLF_BASE=(()=>{const r=mulberry32(20261016),a=[0,215];for(let L=2;L<=MAX_
 function levelCfg(L){
   const wolf=WOLF_BASE[L],wolfAvg=wolf*WOLF_MEAN,ref=wolfAvg*1.02,tg=lerp(1.75,.42,(L-1)/(MAX_LEVEL-1));
   const gapMin=Math.max(200,ref*tg);
-  return{length:Math.round(Math.max(3000,wolfAvg*12.6)),wolf,wolfAvg,clicks:3+Math.floor((L-1)/10),gapMin,gapMax:gapMin+wolfAvg*1.17,reward:400+L*90,coinVal:6+Math.floor(L*1.1)};
+  return{length:3000+(L-1)*1000,wolf,wolfAvg,clicks:3+Math.floor((L-1)/10),gapMin,gapMax:gapMin+wolfAvg*1.17,reward:400+L*90,coinVal:6+Math.floor(L*1.1)};
 }
 const THEMES=[
  {name:'Rừng hoàng hôn',sky:['#ffb36b','#7a3f86'],ground:'#4a7a42',ground2:'#2b4a29',tree:'#1f4a2a',tree2:'#2d6a38',far:'#6b3f7f',sun:'#ffe2a8',stars:false,amb:null},
