@@ -1,0 +1,924 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Labyrinth Wolf</title>
+<style>
+  :root{
+    --bg:#0a0912;
+    --panel:#15131f;
+    --panel2:#1e1b2e;
+    --accent:#ff9d3c;
+    --accent2:#7c4dff;
+    --text:#f1eef8;
+    --muted:#9089ad;
+    --good:#4ade80;
+    --bad:#ff5c5c;
+    --gold:#ffd24a;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;height:100%;background:var(--bg);color:var(--text);
+    font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;overflow:hidden;user-select:none;}
+  #app{position:relative;width:100%;height:100%;max-width:520px;margin:0 auto;
+    background:linear-gradient(180deg,#120f1d,#0a0912);overflow:hidden;}
+  #gameCanvas{display:block;width:100%;height:100%;background:#000;touch-action:none;}
+
+  .screen{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;
+    justify-content:center;gap:14px;padding:24px;z-index:10;
+    background:radial-gradient(circle at 50% 20%, #221a33 0%, #0a0912 75%);}
+  .hidden{display:none !important;}
+
+  h1.title{font-size:34px;margin:0;letter-spacing:1px;color:var(--accent);
+    text-shadow:0 0 18px rgba(255,157,60,.55);}
+  h1.title span{color:var(--accent2);text-shadow:0 0 18px rgba(124,77,255,.6);}
+  .subtitle{color:var(--muted);font-size:13px;margin-top:-10px;text-align:center;}
+
+  .wolf-emoji{font-size:54px;filter:drop-shadow(0 0 14px rgba(124,77,255,.5));}
+
+  .btn{appearance:none;border:none;border-radius:14px;padding:14px 26px;font-size:16px;
+    font-weight:700;color:#1b1424;background:linear-gradient(180deg,#ffcf8a,var(--accent));
+    box-shadow:0 6px 0 #b35f12, 0 10px 18px rgba(0,0,0,.45);cursor:pointer;min-width:220px;
+    transition:transform .06s ease;}
+  .btn:active{transform:translateY(4px);box-shadow:0 2px 0 #b35f12,0 4px 10px rgba(0,0,0,.4);}
+  .btn.secondary{background:linear-gradient(180deg,#8a7dd8,var(--accent2));color:#fff;
+    box-shadow:0 6px 0 #4b2fb0,0 10px 18px rgba(0,0,0,.45);}
+  .btn.secondary:active{box-shadow:0 2px 0 #4b2fb0,0 4px 10px rgba(0,0,0,.4);}
+  .btn.ghost{background:transparent;color:var(--text);box-shadow:none;border:1.5px solid #3a3550;
+    min-width:160px;}
+  .btn.ghost:active{transform:translateY(2px);}
+  .btn:disabled{opacity:.45;cursor:not-allowed;}
+  .btn-row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;}
+
+  .coin-badge{position:absolute;top:14px;right:14px;background:var(--panel);border:1px solid #352f4a;
+    border-radius:999px;padding:7px 14px;font-weight:700;font-size:14px;display:flex;align-items:center;
+    gap:6px;z-index:20;}
+  .coin-badge::before{content:"🪙";}
+
+  .top-left-btn{position:absolute;top:14px;left:14px;z-index:20;}
+  .icon-btn{width:40px;height:40px;border-radius:50%;border:1px solid #352f4a;background:var(--panel);
+    color:var(--text);font-size:18px;display:flex;align-items:center;justify-content:center;cursor:pointer;}
+
+  .panel-card{background:var(--panel);border:1px solid #2a2538;border-radius:18px;padding:18px;
+    width:100%;max-width:420px;max-height:72vh;overflow-y:auto;}
+  .panel-title{font-size:20px;font-weight:800;margin:0 0 10px;color:var(--accent);text-align:center;}
+
+  .shop-item{display:flex;align-items:center;gap:12px;background:var(--panel2);border-radius:14px;
+    padding:12px;margin-bottom:10px;border:1px solid #302a44;}
+  .shop-item .icon{font-size:30px;width:44px;text-align:center;}
+  .shop-item .info{flex:1;}
+  .shop-item .name{font-weight:700;font-size:15px;}
+  .shop-item .desc{font-size:12px;color:var(--muted);margin-top:2px;}
+  .shop-item .price{font-size:12px;color:var(--gold);margin-top:3px;font-weight:700;}
+  .shop-item .act-btn{appearance:none;border:none;border-radius:10px;padding:8px 12px;font-size:12px;
+    font-weight:700;cursor:pointer;min-width:84px;}
+  .act-btn.buy{background:var(--accent);color:#1b1424;}
+  .act-btn.equip{background:var(--accent2);color:#fff;}
+  .act-btn.equipped{background:#2a3a2a;color:var(--good);cursor:default;}
+  .act-btn:disabled{opacity:.4;cursor:not-allowed;}
+
+  .level-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;width:100%;max-width:420px;}
+  .level-cell{aspect-ratio:1;border-radius:10px;background:var(--panel2);border:1px solid #302a44;
+    display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;cursor:pointer;}
+  .level-cell.locked{opacity:.35;cursor:not-allowed;}
+  .level-cell.done{background:linear-gradient(180deg,#2c3b2c,#1c2a1c);border-color:#3f6b3f;color:var(--good);}
+  .level-cell.current{outline:2px solid var(--accent);}
+
+  #hud{position:absolute;top:0;left:0;right:0;padding:10px 12px;display:flex;justify-content:space-between;
+    align-items:center;z-index:15;pointer-events:none;}
+  #hud .hud-pill{pointer-events:auto;background:rgba(10,9,18,.72);backdrop-filter:blur(4px);
+    border:1px solid #352f4a;border-radius:999px;padding:7px 12px;font-size:13px;font-weight:700;
+    display:flex;align-items:center;gap:6px;}
+  #torchBar{width:120px;height:10px;background:#2a2538;border-radius:999px;overflow:hidden;
+    border:1px solid #3a3550;}
+  #torchFill{height:100%;width:100%;background:linear-gradient(90deg,#ffd24a,var(--accent));
+    transition:width .15s linear;}
+  #torchFill.low{background:linear-gradient(90deg,#ff5c5c,#b33a3a);}
+
+  #pauseBtn{pointer-events:auto;}
+
+  #touchpad{position:absolute;bottom:22px;left:0;right:0;display:flex;justify-content:space-between;
+    padding:0 18px;z-index:15;pointer-events:none;}
+  .dpad{position:relative;width:132px;height:132px;pointer-events:auto;}
+  .dpad button{position:absolute;width:46px;height:46px;border-radius:12px;border:1px solid #3a3550;
+    background:rgba(30,27,46,.75);color:#fff;font-size:18px;display:flex;align-items:center;
+    justify-content:center;}
+  .dpad button:active{background:rgba(255,157,60,.4);}
+  .dpad .up{top:0;left:43px;}
+  .dpad .down{bottom:0;left:43px;}
+  .dpad .left{left:0;top:43px;}
+  .dpad .right{right:0;top:43px;}
+
+  .right-actions{display:flex;flex-direction:column;gap:10px;align-self:flex-end;pointer-events:auto;}
+  .round-btn{width:54px;height:54px;border-radius:50%;background:rgba(30,27,46,.75);
+    border:1px solid #3a3550;color:#fff;font-size:20px;display:flex;align-items:center;justify-content:center;}
+
+  .overlay-msg{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;
+    justify-content:center;gap:12px;background:rgba(5,4,10,.82);z-index:30;padding:24px;text-align:center;}
+  .overlay-msg h2{font-size:28px;margin:0;}
+  .overlay-msg.win h2{color:var(--good);}
+  .overlay-msg.lose h2{color:var(--bad);}
+  .overlay-msg p{color:var(--muted);margin:0;font-size:14px;}
+
+  footer.credit{position:absolute;bottom:6px;width:100%;text-align:center;font-size:10px;color:#4a4463;}
+  .toggle-row{display:flex;align-items:center;justify-content:space-between;width:100%;max-width:420px;
+    background:var(--panel2);border:1px solid #302a44;border-radius:12px;padding:12px 14px;margin-bottom:10px;}
+  .switch{width:44px;height:24px;border-radius:999px;background:#352f4a;position:relative;cursor:pointer;}
+  .switch.on{background:var(--good);}
+  .switch .knob{position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#fff;
+    transition:left .15s ease;}
+  .switch.on .knob{left:22px;}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- MAIN MENU -->
+  <div id="menuScreen" class="screen">
+    <div class="coin-badge" id="menuCoins">0</div>
+    <div class="wolf-emoji">🐺</div>
+    <h1 class="title">Labyrinth <span>Wolf</span></h1>
+    <div class="subtitle">Tối tăm. Đuốc sắp tắt. Tìm đường ra.</div>
+    <div class="btn-row" style="margin-top:10px;flex-direction:column;align-items:center;">
+      <button class="btn" id="btnPlay">▶ Chơi (Màn <span id="menuLevel">1</span>)</button>
+      <button class="btn secondary" id="btnLevels">🗺 Chọn màn</button>
+      <button class="btn secondary" id="btnShop">🛍 Shop</button>
+      <button class="btn ghost" id="btnSettings">⚙ Cài đặt</button>
+    </div>
+    <footer class="credit">Labyrinth Wolf · kangbao15</footer>
+  </div>
+
+  <!-- LEVEL SELECT -->
+  <div id="levelScreen" class="screen hidden">
+    <button class="icon-btn top-left-btn" id="btnLevelsBack">←</button>
+    <h2 class="panel-title">Chọn màn (1–50)</h2>
+    <div class="panel-card">
+      <div class="level-grid" id="levelGrid"></div>
+    </div>
+  </div>
+
+  <!-- SHOP -->
+  <div id="shopScreen" class="screen hidden">
+    <button class="icon-btn top-left-btn" id="btnShopBack">←</button>
+    <div class="coin-badge" id="shopCoins">0</div>
+    <h2 class="panel-title">🛍 Shop ánh sáng</h2>
+    <div class="panel-card" id="shopList"></div>
+  </div>
+
+  <!-- SETTINGS -->
+  <div id="settingsScreen" class="screen hidden">
+    <button class="icon-btn top-left-btn" id="btnSettingsBack">←</button>
+    <h2 class="panel-title">⚙ Cài đặt</h2>
+    <div class="panel-card">
+      <div class="toggle-row"><span>Âm thanh hiệu ứng</span><div class="switch" id="sfxToggle"><div class="knob"></div></div></div>
+      <div class="toggle-row"><span>Nhạc nền</span><div class="switch" id="bgmToggle"><div class="knob"></div></div></div>
+      <div class="toggle-row" style="flex-direction:column;align-items:stretch;gap:8px;">
+        <span style="color:var(--muted);font-size:12px;">Xoá toàn bộ tiến trình, xu và vật phẩm.</span>
+        <button class="btn ghost" id="btnReset" style="min-width:0;">Reset tiến trình</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- GAME SCREEN -->
+  <div id="gameScreen" class="screen hidden" style="padding:0;justify-content:flex-start;">
+    <canvas id="gameCanvas"></canvas>
+    <div id="hud">
+      <div class="hud-pill">🏳 Màn <span id="hudLevel">1</span></div>
+      <div class="hud-pill" id="torchPill">🔥 <div id="torchBar"><div id="torchFill"></div></div></div>
+      <div class="hud-pill" id="pauseBtn">⏸</div>
+    </div>
+    <div id="touchpad">
+      <div class="dpad">
+        <button class="up" data-dir="up">▲</button>
+        <button class="left" data-dir="left">◀</button>
+        <button class="right" data-dir="right">▶</button>
+        <button class="down" data-dir="down">▼</button>
+      </div>
+      <div class="right-actions"></div>
+    </div>
+  </div>
+
+  <!-- PAUSE OVERLAY -->
+  <div id="pauseOverlay" class="overlay-msg hidden">
+    <h2>⏸ Tạm dừng</h2>
+    <div class="btn-row" style="flex-direction:column;align-items:center;">
+      <button class="btn" id="btnResume">Tiếp tục</button>
+      <button class="btn secondary" id="btnRestartLevel">Chơi lại màn</button>
+      <button class="btn ghost" id="btnQuitToMenu">Về menu</button>
+    </div>
+  </div>
+
+  <!-- WIN OVERLAY -->
+  <div id="winOverlay" class="overlay-msg win hidden">
+    <h2>🎉 Thoát khỏi mê cung!</h2>
+    <p id="winCoinsText">+150 xu</p>
+    <div class="btn-row" style="flex-direction:column;align-items:center;">
+      <button class="btn" id="btnNextLevel">Màn tiếp theo ▶</button>
+      <button class="btn ghost" id="btnWinMenu">Về menu</button>
+    </div>
+  </div>
+
+  <!-- LOSE OVERLAY -->
+  <div id="loseOverlay" class="overlay-msg lose hidden">
+    <h2>🔥 Đuốc đã tắt...</h2>
+    <p>Bạn lạc trong bóng tối mất rồi. Thử lại nhé!</p>
+    <div class="btn-row" style="flex-direction:column;align-items:center;">
+      <button class="btn" id="btnRetry">Thử lại màn</button>
+      <button class="btn ghost" id="btnLoseMenu">Về menu</button>
+    </div>
+  </div>
+
+  <!-- ALL CLEAR OVERLAY -->
+  <div id="clearOverlay" class="overlay-msg win hidden">
+    <h2>🏆 Hoàn thành cả 50 màn!</h2>
+    <p>Chó sói giỏi quá! Chơi lại màn bất kỳ ở "Chọn màn" nhé.</p>
+    <div class="btn-row">
+      <button class="btn" id="btnClearMenu">Về menu</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function(){
+"use strict";
+
+/* ===================== STORAGE / STATE ===================== */
+const SAVE_KEY = "labyrinthWolf_save_v1";
+const MAX_LEVEL = 50;
+
+const LIGHTS = {
+  torch:   { id:"torch",   name:"Đuốc",         icon:"🔥", price:0,    duration:45,  radius:95,  color:"#ffb347", desc:"Trang bị mặc định. Cháy nhanh." },
+  weak:    { id:"weak",    name:"Đèn pin yếu",  icon:"🔦", price:1500, duration:60,  radius:130, color:"#ffe08a", desc:"Sáng hơn đuốc, trụ lâu hơn." },
+  strong:  { id:"strong",  name:"Đèn pin mạnh", icon:"🔦", price:3000, duration:90,  radius:170, color:"#fff4c2", desc:"Vùng sáng rộng, thời gian dài." },
+  wolfeye: { id:"wolfeye", name:"Mắt sói",      icon:"👁", price:8000, duration:Infinity, radius:230, color:"#9ad8ff", desc:"Không bao giờ tắt. Nhìn xa như sói." }
+};
+
+function defaultSave(){
+  return { coins:0, unlockedLevel:1, owned:["torch"], equipped:"torch", sfx:true, bgm:true };
+}
+let save = loadSave();
+function loadSave(){
+  try{
+    const raw = localStorage.getItem(SAVE_KEY);
+    if(!raw) return defaultSave();
+    const s = JSON.parse(raw);
+    return Object.assign(defaultSave(), s);
+  }catch(e){ return defaultSave(); }
+}
+function persist(){
+  try{ localStorage.setItem(SAVE_KEY, JSON.stringify(save)); }catch(e){}
+}
+
+/* ===================== SOUND (WebAudio, synth, no assets) ===================== */
+let actx = null;
+function ensureAudio(){
+  if(!actx){
+    try{ actx = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ actx=null; }
+  }
+  if(actx && actx.state === "suspended") actx.resume();
+}
+function sfx(type){
+  if(!save.sfx || !actx) return;
+  const t0 = actx.currentTime;
+  function tone(freq, start, dur, vol, wave, slideTo){
+    const o = actx.createOscillator();
+    const g = actx.createGain();
+    o.type = wave || "sine";
+    o.frequency.setValueAtTime(freq, t0+start);
+    if(slideTo) o.frequency.exponentialRampToValueAtTime(Math.max(20,slideTo), t0+start+dur);
+    g.gain.setValueAtTime(0, t0+start);
+    g.gain.linearRampToValueAtTime(vol, t0+start+0.02);
+    g.gain.exponentialRampToValueAtTime(0.001, t0+start+dur);
+    o.connect(g); g.connect(actx.destination);
+    o.start(t0+start); o.stop(t0+start+dur+0.05);
+  }
+  function noiseBurst(start, dur, vol, hp){
+    const bufSize = Math.floor(actx.sampleRate*dur);
+    const buf = actx.createBuffer(1, bufSize, actx.sampleRate);
+    const data = buf.getChannelData(0);
+    for(let i=0;i<bufSize;i++) data[i] = (Math.random()*2-1) * (1-i/bufSize);
+    const src = actx.createBufferSource(); src.buffer = buf;
+    const filt = actx.createBiquadFilter(); filt.type = hp?"highpass":"lowpass"; filt.frequency.value = hp||4000;
+    const g = actx.createGain();
+    g.gain.setValueAtTime(vol, t0+start);
+    g.gain.exponentialRampToValueAtTime(0.001, t0+start+dur);
+    src.connect(filt); filt.connect(g); g.connect(actx.destination);
+    src.start(t0+start);
+  }
+  switch(type){
+    case "click": tone(520,0,0.08,0.22,"square"); break;
+    case "coin":  tone(880,0,0.09,0.22,"triangle"); tone(1320,0.07,0.13,0.18,"triangle"); break;
+    case "buy":   tone(660,0,0.09,0.22,"triangle"); tone(990,0.08,0.13,0.22,"triangle"); tone(1320,0.16,0.18,0.18,"triangle"); break;
+    case "win":   tone(523,0,0.13,0.22,"triangle"); tone(659,0.12,0.13,0.22,"triangle"); tone(784,0.24,0.13,0.22,"triangle"); tone(1046,0.36,0.24,0.26,"triangle"); break;
+    case "lose":  tone(300,0,0.3,0.26,"sawtooth",85); tone(180,0.22,0.5,0.22,"sawtooth",55); noiseBurst(0.05,0.4,0.12,300); break;
+    case "warn":  tone(740,0,0.1,0.22,"square"); tone(740,0.14,0.1,0.18,"square"); break;
+    case "step":  tone(140+Math.random()*30,0,0.035,0.055,"square"); break;
+  }
+}
+
+let bgmNodes = null;
+let heartbeatTimer = null;
+function tensionRatio(){
+  if(game && !game.ended && game.duration && game.duration!==Infinity){
+    return Math.max(0, Math.min(1, game.timeLeft/game.duration));
+  }
+  return 1;
+}
+function scheduleHeartbeat(){
+  if(!bgmNodes || !actx) return;
+  const t = tensionRatio();
+  // slower & softer when safe, fast & loud when torch almost out
+  const interval = 1500 - (1-t)*950;      // 1500ms calm -> ~550ms tense
+  const vol = 0.05 + (1-t)*0.11;
+  const t0 = actx.currentTime;
+  const o = actx.createOscillator(); o.type = "sine"; o.frequency.setValueAtTime(90,t0);
+  o.frequency.exponentialRampToValueAtTime(42, t0+0.18);
+  const g = actx.createGain();
+  g.gain.setValueAtTime(0, t0);
+  g.gain.linearRampToValueAtTime(vol, t0+0.02);
+  g.gain.exponentialRampToValueAtTime(0.001, t0+0.22);
+  o.connect(g); g.connect(bgmNodes.master);
+  o.start(t0); o.stop(t0+0.25);
+  heartbeatTimer = setTimeout(scheduleHeartbeat, interval);
+}
+function scheduleNote(){
+  if(!bgmNodes || !actx) return;
+  const t = tensionRatio();
+  const tempo = 430 - (1-t)*170; // 430ms khi an toàn, ~260ms khi đuốc sắp tắt
+  const t0 = actx.currentTime;
+  const pattern = bgmNodes.pattern;
+  const freq = pattern[bgmNodes.idx % pattern.length];
+  bgmNodes.idx++;
+  const o = actx.createOscillator();
+  o.type = "triangle";
+  o.frequency.value = freq;
+  const g = actx.createGain();
+  g.gain.setValueAtTime(0, t0);
+  g.gain.linearRampToValueAtTime(0.085 + (1-t)*0.06, t0+0.012);
+  g.gain.exponentialRampToValueAtTime(0.0007, t0+tempo/1000*0.92);
+  o.connect(g); g.connect(bgmNodes.filt);
+  o.start(t0); o.stop(t0+tempo/1000+0.02);
+  bgmNodes.noteTimer = setTimeout(scheduleNote, tempo);
+}
+function startBgm(){
+  if(!save.bgm) return;
+  ensureAudio();
+  if(!actx || bgmNodes) return;
+  const master = actx.createGain();
+  master.gain.value = 0.0001;
+  master.gain.linearRampToValueAtTime(0.17, actx.currentTime+1);
+  const filt = actx.createBiquadFilter();
+  filt.type = "lowpass"; filt.frequency.value = 1400;
+  filt.connect(master);
+  master.connect(actx.destination);
+
+  // nhịp điệu căng thẳng kiểu "hộp nhạc trong hang tối", không phải drone kéo dài
+  const pattern = [196, 233.1, 220, 174.6, 196, 220, 196, 146.8];
+
+  // thỉnh thoảng có tiếng cao thoáng qua, rất nhẹ, tạo cảm giác rợn
+  const sparkleTimer = setInterval(()=>{
+    if(!bgmNodes || !save.bgm) return;
+    if(Math.random()>0.4) return;
+    const t0 = actx.currentTime;
+    const o = actx.createOscillator(); o.type="sine";
+    const notes=[880,987.8,1174.7];
+    o.frequency.value = notes[Math.floor(Math.random()*notes.length)];
+    const g = actx.createGain();
+    g.gain.setValueAtTime(0,t0);
+    g.gain.linearRampToValueAtTime(0.035, t0+0.25);
+    g.gain.exponentialRampToValueAtTime(0.0006, t0+1.3);
+    o.connect(g); g.connect(master);
+    o.start(t0); o.stop(t0+1.4);
+  }, 2600);
+
+  bgmNodes = {master, filt, pattern, idx:0, sparkleTimer};
+  scheduleNote();
+  scheduleHeartbeat();
+}
+function stopBgm(){
+  if(heartbeatTimer){ clearTimeout(heartbeatTimer); heartbeatTimer=null; }
+  if(bgmNodes){
+    try{
+      const now = actx.currentTime;
+      bgmNodes.master.gain.cancelScheduledValues(now);
+      bgmNodes.master.gain.setValueAtTime(bgmNodes.master.gain.value, now);
+      bgmNodes.master.gain.linearRampToValueAtTime(0.0001, now+0.4);
+      clearTimeout(bgmNodes.noteTimer);
+      clearInterval(bgmNodes.sparkleTimer);
+    }catch(e){}
+    bgmNodes = null;
+  }
+}
+function applyBgmToggle(){
+  if(save.bgm) startBgm(); else stopBgm();
+}
+
+/* ===================== MAZE GENERATION ===================== */
+function mazeSizeForLevel(level){
+  const s = 9 + Math.floor((level-1)/1.4);
+  return Math.max(9, Math.min(24, s));
+}
+function torchMultiplierForLevel(level){
+  // squeeze at higher levels to keep late-game tense, down to 60% of base
+  return Math.max(0.6, 1 - (level-1)*0.009);
+}
+
+function generateMaze(w,h){
+  // vWall[row][col] col 0..w : wall to the LEFT of cell(row,col)
+  // hWall[row][col] row 0..h : wall ABOVE cell(row,col)
+  const vWall = []; for(let r=0;r<h;r++){ vWall.push(new Array(w+1).fill(true)); }
+  const hWall = []; for(let r=0;r<=h;r++){ hWall.push(new Array(w).fill(true)); }
+  const visited = []; for(let r=0;r<h;r++) visited.push(new Array(w).fill(false));
+
+  const stack = [[0,0]];
+  visited[0][0] = true;
+  while(stack.length){
+    const [r,c] = stack[stack.length-1];
+    const neighbors = [];
+    if(r>0 && !visited[r-1][c]) neighbors.push([r-1,c,"up"]);
+    if(r<h-1 && !visited[r+1][c]) neighbors.push([r+1,c,"down"]);
+    if(c>0 && !visited[r][c-1]) neighbors.push([r,c-1,"left"]);
+    if(c<w-1 && !visited[r][c+1]) neighbors.push([r,c+1,"right"]);
+    if(neighbors.length===0){ stack.pop(); continue; }
+    const pick = neighbors[Math.floor(Math.random()*neighbors.length)];
+    const [nr,nc,dir] = pick;
+    if(dir==="up") hWall[r][c] = false;
+    else if(dir==="down") hWall[r+1][c] = false;
+    else if(dir==="left") vWall[r][c] = false;
+    else if(dir==="right") vWall[r][c+1] = false;
+    visited[nr][nc] = true;
+    stack.push([nr,nc]);
+  }
+
+  // very few extra loops — keep the maze mostly a single true path (harder, fewer shortcuts)
+  const extra = Math.floor(w*h*0.008);
+  for(let i=0;i<extra;i++){
+    const r = Math.floor(Math.random()*h), c = Math.floor(Math.random()*w);
+    const choice = Math.floor(Math.random()*4);
+    if(choice===0 && r>0) hWall[r][c]=false;
+    else if(choice===1 && r<h-1) hWall[r+1][c]=false;
+    else if(choice===2 && c>0) vWall[r][c]=false;
+    else if(choice===3 && c<w-1) vWall[r][c+1]=false;
+  }
+
+  // BFS from (0,0) to find farthest cell -> exit
+  const dist = []; for(let r=0;r<h;r++) dist.push(new Array(w).fill(-1));
+  dist[0][0]=0;
+  let queue=[[0,0]], qi=0;
+  let far=[0,0], farDist=0;
+  while(qi<queue.length){
+    const [r,c] = queue[qi++];
+    const d = dist[r][c];
+    if(d>farDist){ farDist=d; far=[r,c]; }
+    const moves = [];
+    if(r>0 && !hWall[r][c]) moves.push([r-1,c]);
+    if(r<h-1 && !hWall[r+1][c]) moves.push([r+1,c]);
+    if(c>0 && !vWall[r][c]) moves.push([r,c-1]);
+    if(c<w-1 && !vWall[r][c+1]) moves.push([r,c+1]);
+    for(const [nr,nc] of moves){
+      if(dist[nr][nc]===-1){ dist[nr][nc]=d+1; queue.push([nr,nc]); }
+    }
+  }
+
+  return { w,h, vWall, hWall, start:[0,0], exit:far };
+}
+
+function buildWallRects(maze, CS, WT){
+  const rects = [];
+  const {w,h,vWall,hWall} = maze;
+  for(let r=0;r<h;r++){
+    for(let c=0;c<=w;c++){
+      if(vWall[r][c]) rects.push({x:c*CS-WT/2, y:r*CS-WT/2, w:WT, h:CS+WT});
+    }
+  }
+  for(let r=0;r<=h;r++){
+    for(let c=0;c<w;c++){
+      if(hWall[r][c]) rects.push({x:c*CS-WT/2, y:r*CS-WT/2, w:CS+WT, h:WT});
+    }
+  }
+  return rects;
+}
+
+/* ===================== GAME STATE ===================== */
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
+let DPR = Math.min(2, window.devicePixelRatio||1);
+
+const CELL = 44;
+const WALL_T = 7;
+
+let game = null; // active run state
+let rafId = null;
+let lastTs = 0;
+let paused = false;
+
+function resizeCanvas(){
+  const rect = canvas.parentElement.getBoundingClientRect();
+  canvas.width = Math.round(rect.width*DPR);
+  canvas.height = Math.round(rect.height*DPR);
+  canvas.style.width = rect.width+"px";
+  canvas.style.height = rect.height+"px";
+}
+window.addEventListener("resize", resizeCanvas);
+
+function newRun(level){
+  const size = mazeSizeForLevel(level);
+  const maze = generateMaze(size, size);
+  const wallRects = buildWallRects(maze, CELL, WALL_T);
+  const light = LIGHTS[save.equipped] || LIGHTS.torch;
+  const mult = torchMultiplierForLevel(level);
+  const duration = light.duration===Infinity ? Infinity : light.duration*mult;
+  game = {
+    level, maze, wallRects,
+    px: CELL*0.5, py: CELL*0.5,
+    r: 11,
+    exitPx: maze.exit[1]*CELL+CELL*0.5,
+    exitPy: maze.exit[0]*CELL+CELL*0.5,
+    light, duration, timeLeft: duration,
+    flicker: 0,
+    speed: 170,
+    keys: {up:false,down:false,left:false,right:false},
+    ended:false,
+    warned:false,
+    stepAcc:0
+  };
+  document.getElementById("hudLevel").textContent = level;
+  updateTorchUI();
+  resizeCanvas();
+}
+
+function circleRectCollide(cx,cy,r,rect){
+  const closestX = Math.max(rect.x, Math.min(cx, rect.x+rect.w));
+  const closestY = Math.max(rect.y, Math.min(cy, rect.y+rect.h));
+  const dx = cx-closestX, dy = cy-closestY;
+  return (dx*dx+dy*dy) < r*r;
+}
+
+function tryMove(dx,dy){
+  if(dx!==0){
+    let nx = game.px+dx;
+    let collided=false;
+    for(const rect of game.wallRects){
+      if(circleRectCollide(nx, game.py, game.r, rect)){ collided=true; break; }
+    }
+    if(!collided) game.px = nx;
+  }
+  if(dy!==0){
+    let ny = game.py+dy;
+    let collided=false;
+    for(const rect of game.wallRects){
+      if(circleRectCollide(game.px, ny, game.r, rect)){ collided=true; break; }
+    }
+    if(!collided) game.py = ny;
+  }
+}
+
+function updateTorchUI(){
+  const fill = document.getElementById("torchFill");
+  if(game.duration===Infinity){
+    fill.style.width = "100%";
+    fill.classList.remove("low");
+    return;
+  }
+  const pct = Math.max(0, game.timeLeft/game.duration)*100;
+  fill.style.width = pct+"%";
+  fill.classList.toggle("low", pct<25);
+}
+
+function endLevel(won){
+  if(game.ended) return;
+  game.ended = true;
+  cancelAnimationFrame(rafId);
+  if(won){
+    sfx("win");
+    save.coins += 150;
+    if(game.level >= save.unlockedLevel && save.unlockedLevel<=MAX_LEVEL){
+      save.unlockedLevel = Math.min(MAX_LEVEL, game.level+1);
+    }
+    persist();
+    document.getElementById("winCoinsText").textContent = "+150 xu — Tổng: "+save.coins+" xu";
+    if(game.level>=MAX_LEVEL){
+      show("clearOverlay");
+    } else {
+      show("winOverlay");
+    }
+  } else {
+    sfx("lose");
+    show("loseOverlay");
+  }
+}
+
+function gameLoop(ts){
+  if(!game || game.ended){ return; }
+  if(paused){ rafId = requestAnimationFrame(gameLoop); lastTs = ts; return; }
+  const dt = Math.min(0.05, (ts-lastTs)/1000 || 0);
+  lastTs = ts;
+
+  // movement
+  let dx=0, dy=0;
+  if(game.keys.up) dy-=1;
+  if(game.keys.down) dy+=1;
+  if(game.keys.left) dx-=1;
+  if(game.keys.right) dx+=1;
+  if(dx!==0 && dy!==0){ dx*=0.7071; dy*=0.7071; }
+  if(dx!==0 || dy!==0){
+    tryMove(dx*game.speed*dt, dy*game.speed*dt);
+    game.stepAcc += dt;
+    if(game.stepAcc>0.28){ game.stepAcc=0; sfx("step"); }
+  }
+
+  // torch
+  if(game.duration!==Infinity){
+    game.timeLeft -= dt;
+    if(!game.warned && game.timeLeft<=10 && game.timeLeft>0){
+      game.warned = true;
+    }
+    if(game.timeLeft<=10 && game.timeLeft>0){
+      game._warnAcc = (game._warnAcc||0)+dt;
+      if(game._warnAcc>1){ game._warnAcc=0; sfx("warn"); }
+    }
+    if(game.timeLeft<=0){
+      game.timeLeft = 0;
+      updateTorchUI();
+      endLevel(false);
+      return;
+    }
+  }
+  updateTorchUI();
+
+  // win check
+  const ddx = game.px-game.exitPx, ddy = game.py-game.exitPy;
+  if(ddx*ddx+ddy*ddy < (CELL*0.45)*(CELL*0.45)){
+    endLevel(true);
+    return;
+  }
+
+  game.flicker += dt;
+  render();
+  rafId = requestAnimationFrame(gameLoop);
+}
+
+function render(){
+  const w = canvas.width/DPR, h = canvas.height/DPR;
+  ctx.save();
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  ctx.clearRect(0,0,w,h);
+  ctx.fillStyle = "#050409";
+  ctx.fillRect(0,0,w,h);
+
+  const camX = game.px - w/2;
+  const camY = game.py - h/2;
+  ctx.save();
+  ctx.translate(-camX, -camY);
+
+  // floor hint (very dark)
+  ctx.fillStyle = "#0d0b16";
+  ctx.fillRect(0,0,game.maze.w*CELL, game.maze.h*CELL);
+
+  // walls
+  ctx.fillStyle = "#2a2440";
+  ctx.strokeStyle = "#453d66";
+  ctx.lineWidth = 1;
+  for(const rect of game.wallRects){
+    ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
+  }
+
+  // exit glow
+  const eg = ctx.createRadialGradient(game.exitPx, game.exitPy, 2, game.exitPx, game.exitPy, CELL*1.4);
+  eg.addColorStop(0, "rgba(120,255,170,0.9)");
+  eg.addColorStop(1, "rgba(120,255,170,0)");
+  ctx.fillStyle = eg;
+  ctx.beginPath(); ctx.arc(game.exitPx, game.exitPy, CELL*1.4, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "#e9fff1";
+  ctx.beginPath(); ctx.arc(game.exitPx, game.exitPy, 9, 0, Math.PI*2); ctx.fill();
+
+  // player (wolf)
+  ctx.font = (game.r*2.6)+"px serif";
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.fillText("🐺", game.px, game.py+2);
+
+  ctx.restore(); // camera
+
+  // ===== fog of war mask with flicker "shader" =====
+  const flick = 1 + Math.sin(game.flicker*9)*0.035 + (Math.sin(game.flicker*23.7)*0.02);
+  const baseR = game.light.radius * flick;
+  const screenX = w/2, screenY = h/2;
+
+  const fog = document.createElement("canvas");
+  fog.width = canvas.width; fog.height = canvas.height;
+  const fctx = fog.getContext("2d");
+  fctx.setTransform(DPR,0,0,DPR,0,0);
+  fctx.fillStyle = "#000"; fctx.fillRect(0,0,w,h);
+  const grad = fctx.createRadialGradient(screenX, screenY, baseR*0.15, screenX, screenY, baseR);
+  grad.addColorStop(0, "rgba(0,0,0,1)");
+  grad.addColorStop(0.55, "rgba(0,0,0,1)");
+  grad.addColorStop(0.85, "rgba(0,0,0,0.55)");
+  grad.addColorStop(1, "rgba(0,0,0,0)");
+  fctx.globalCompositeOperation = "destination-out";
+  fctx.fillStyle = grad;
+  fctx.beginPath(); fctx.arc(screenX, screenY, baseR, 0, Math.PI*2); fctx.fill();
+  ctx.drawImage(fog, 0,0, w,h);
+
+  // warm light tint overlay near player
+  const tint = ctx.createRadialGradient(screenX, screenY, 0, screenX, screenY, baseR*0.9);
+  tint.addColorStop(0, hexAlpha(game.light.color,0.10));
+  tint.addColorStop(1, hexAlpha(game.light.color,0));
+  ctx.fillStyle = tint;
+  ctx.beginPath(); ctx.arc(screenX,screenY,baseR*0.9,0,Math.PI*2); ctx.fill();
+
+  // vignette corners
+  const vg = ctx.createRadialGradient(w/2,h/2, Math.min(w,h)*0.35, w/2,h/2, Math.max(w,h)*0.75);
+  vg.addColorStop(0,"rgba(0,0,0,0)");
+  vg.addColorStop(1,"rgba(0,0,0,0.55)");
+  ctx.fillStyle = vg; ctx.fillRect(0,0,w,h);
+
+  ctx.restore();
+}
+function hexAlpha(hex, a){
+  const n = parseInt(hex.slice(1),16);
+  const r=(n>>16)&255, g=(n>>8)&255, b=n&255;
+  return `rgba(${r},${g},${b},${a})`;
+}
+
+/* ===================== INPUT ===================== */
+window.addEventListener("keydown", (e)=>{
+  if(!game || game.ended) return;
+  switch(e.key){
+    case "w": case "W": case "ArrowUp": game.keys.up=true; break;
+    case "s": case "S": case "ArrowDown": game.keys.down=true; break;
+    case "a": case "A": case "ArrowLeft": game.keys.left=true; break;
+    case "d": case "D": case "ArrowRight": game.keys.right=true; break;
+    case "Escape": togglePause(); break;
+  }
+});
+window.addEventListener("keyup", (e)=>{
+  if(!game) return;
+  switch(e.key){
+    case "w": case "W": case "ArrowUp": game.keys.up=false; break;
+    case "s": case "S": case "ArrowDown": game.keys.down=false; break;
+    case "a": case "A": case "ArrowLeft": game.keys.left=false; break;
+    case "d": case "D": case "ArrowRight": game.keys.right=false; break;
+  }
+});
+
+document.querySelectorAll(".dpad button").forEach(btn=>{
+  const dir = btn.dataset.dir;
+  const on = (e)=>{ e.preventDefault(); if(game) game.keys[dir]=true; };
+  const off = (e)=>{ e.preventDefault(); if(game) game.keys[dir]=false; };
+  btn.addEventListener("touchstart", on, {passive:false});
+  btn.addEventListener("touchend", off, {passive:false});
+  btn.addEventListener("touchcancel", off, {passive:false});
+  btn.addEventListener("mousedown", on);
+  btn.addEventListener("mouseup", off);
+  btn.addEventListener("mouseleave", off);
+});
+
+/* ===================== SCREEN MGMT ===================== */
+function show(id){
+  document.querySelectorAll(".screen, .overlay-msg").forEach(el=>el.classList.add("hidden"));
+  document.getElementById(id).classList.remove("hidden");
+}
+function showOverlayOnTop(id){
+  document.getElementById(id).classList.remove("hidden");
+}
+function hideOverlay(id){
+  document.getElementById(id).classList.add("hidden");
+}
+
+function refreshMenu(){
+  document.getElementById("menuCoins").textContent = save.coins;
+  document.getElementById("menuLevel").textContent = Math.min(save.unlockedLevel, MAX_LEVEL);
+}
+
+function buildLevelGrid(){
+  const grid = document.getElementById("levelGrid");
+  grid.innerHTML = "";
+  for(let i=1;i<=MAX_LEVEL;i++){
+    const cell = document.createElement("div");
+    cell.className = "level-cell";
+    cell.textContent = i;
+    const locked = i>save.unlockedLevel;
+    if(locked) cell.classList.add("locked");
+    if(i<save.unlockedLevel) cell.classList.add("done");
+    if(i===save.unlockedLevel) cell.classList.add("current");
+    if(!locked){
+      cell.addEventListener("click", ()=>{ sfx("click"); startLevel(i); });
+    }
+    grid.appendChild(cell);
+  }
+}
+
+function buildShop(){
+  const list = document.getElementById("shopList");
+  list.innerHTML = "";
+  Object.values(LIGHTS).forEach(item=>{
+    const owned = save.owned.includes(item.id);
+    const equipped = save.equipped === item.id;
+    const row = document.createElement("div");
+    row.className = "shop-item";
+    const durTxt = item.duration===Infinity ? "Không giới hạn" : item.duration+"s";
+    row.innerHTML = `
+      <div class="icon">${item.icon}</div>
+      <div class="info">
+        <div class="name">${item.name}</div>
+        <div class="desc">${item.desc} · Cháy: ${durTxt}</div>
+        <div class="price">${item.price===0?"Miễn phí":item.price+" xu"}</div>
+      </div>
+    `;
+    const btn = document.createElement("button");
+    if(equipped){
+      btn.className = "act-btn equipped"; btn.textContent = "Đang dùng"; btn.disabled = true;
+    } else if(owned){
+      btn.className = "act-btn equip"; btn.textContent = "Trang bị";
+      btn.addEventListener("click", ()=>{ sfx("click"); save.equipped = item.id; persist(); buildShop(); });
+    } else {
+      btn.className = "act-btn buy"; btn.textContent = "Mua";
+      btn.disabled = save.coins < item.price;
+      btn.addEventListener("click", ()=>{
+        if(save.coins < item.price) return;
+        save.coins -= item.price;
+        save.owned.push(item.id);
+        save.equipped = item.id;
+        persist();
+        sfx("buy");
+        document.getElementById("shopCoins").textContent = save.coins;
+        buildShop();
+      });
+    }
+    row.appendChild(btn);
+    list.appendChild(row);
+  });
+  document.getElementById("shopCoins").textContent = save.coins;
+}
+
+function startLevel(level){
+  ensureAudio(); applyBgmToggle();
+  paused = false;
+  hideOverlay("pauseOverlay"); hideOverlay("winOverlay"); hideOverlay("loseOverlay"); hideOverlay("clearOverlay");
+  show("gameScreen");
+  newRun(level);
+  lastTs = performance.now();
+  cancelAnimationFrame(rafId);
+  rafId = requestAnimationFrame(gameLoop);
+}
+
+function togglePause(){
+  if(!game || game.ended) return;
+  paused = !paused;
+  if(paused){ showOverlayOnTop("pauseOverlay"); } else { hideOverlay("pauseOverlay"); }
+}
+
+/* ===================== WIRE UP UI ===================== */
+document.getElementById("btnPlay").addEventListener("click", ()=>{ sfx("click"); startLevel(Math.min(save.unlockedLevel, MAX_LEVEL)); });
+document.getElementById("btnLevels").addEventListener("click", ()=>{ sfx("click"); buildLevelGrid(); show("levelScreen"); });
+document.getElementById("btnLevelsBack").addEventListener("click", ()=>{ sfx("click"); refreshMenu(); show("menuScreen"); });
+document.getElementById("btnShop").addEventListener("click", ()=>{ sfx("click"); buildShop(); show("shopScreen"); });
+document.getElementById("btnShopBack").addEventListener("click", ()=>{ sfx("click"); refreshMenu(); show("menuScreen"); });
+document.getElementById("btnSettings").addEventListener("click", ()=>{ sfx("click"); syncToggles(); show("settingsScreen"); });
+document.getElementById("btnSettingsBack").addEventListener("click", ()=>{ sfx("click"); refreshMenu(); show("menuScreen"); });
+
+document.getElementById("pauseBtn").addEventListener("click", ()=>{ sfx("click"); togglePause(); });
+document.getElementById("btnResume").addEventListener("click", ()=>{ sfx("click"); togglePause(); });
+document.getElementById("btnRestartLevel").addEventListener("click", ()=>{ sfx("click"); startLevel(game.level); });
+document.getElementById("btnQuitToMenu").addEventListener("click", ()=>{ sfx("click"); cancelAnimationFrame(rafId); game=null; paused=false; hideOverlay("pauseOverlay"); refreshMenu(); show("menuScreen"); });
+
+document.getElementById("btnNextLevel").addEventListener("click", ()=>{ sfx("click"); startLevel(Math.min(MAX_LEVEL, game.level+1)); });
+document.getElementById("btnWinMenu").addEventListener("click", ()=>{ sfx("click"); refreshMenu(); show("menuScreen"); });
+document.getElementById("btnRetry").addEventListener("click", ()=>{ sfx("click"); startLevel(game.level); });
+document.getElementById("btnLoseMenu").addEventListener("click", ()=>{ sfx("click"); refreshMenu(); show("menuScreen"); });
+document.getElementById("btnClearMenu").addEventListener("click", ()=>{ sfx("click"); refreshMenu(); show("menuScreen"); });
+
+document.getElementById("sfxToggle").addEventListener("click", ()=>{
+  save.sfx = !save.sfx; persist(); syncToggles(); if(save.sfx){ ensureAudio(); sfx("click"); }
+});
+document.getElementById("bgmToggle").addEventListener("click", ()=>{
+  save.bgm = !save.bgm; persist(); syncToggles(); ensureAudio(); applyBgmToggle();
+});
+document.getElementById("btnReset").addEventListener("click", ()=>{
+  if(confirm("Xoá toàn bộ tiến trình, xu và vật phẩm?")){
+    save = defaultSave(); persist(); syncToggles(); refreshMenu();
+    alert("Đã reset.");
+  }
+});
+
+function syncToggles(){
+  document.getElementById("sfxToggle").classList.toggle("on", save.sfx);
+  document.getElementById("bgmToggle").classList.toggle("on", save.bgm);
+}
+
+/* unlock audio context on first user gesture (mobile autoplay policies) */
+["pointerdown","keydown","touchstart"].forEach(evt=>{
+  window.addEventListener(evt, ()=>{ ensureAudio(); }, {once:true, passive:true});
+});
+
+/* ===================== INIT ===================== */
+refreshMenu();
+syncToggles();
+resizeCanvas();
+show("menuScreen");
+
+})();
+</script>
+</body>
+</html>
