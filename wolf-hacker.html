@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8" />
+<title>Wolf Hacker</title>
+<style>
+:root {
+  color-scheme: dark;
+  --bg: #080b10;
+  --panel: #101720;
+  --panel2: #141e29;
+  --line: #283746;
+  --text: #e4edf5;
+  --muted: #8292a3;
+  --cyan: #83e6ed;
+  --green: #a1e8ac;
+  --danger: #ff7878;
+}
+* { box-sizing: border-box; }
+html, body, #world { width:100%; height:100%; margin:0; overflow:hidden; background:var(--bg); color:var(--text); font-family:"Segoe UI", Arial, sans-serif; }
+button, input { font: inherit; }
+button { cursor:pointer; }
+#game-canvas { position:absolute; inset:0; width:100%; height:100%; display:block; }
+#hud { position:absolute; z-index:2; top:0; left:0; right:0; padding:25px 32px; display:flex; align-items:flex-start; justify-content:space-between; gap:24px; pointer-events:none; background:linear-gradient(#080b10e8, #080b1055, transparent); }
+.brand, .stats, .stat, .computer-brand, .computer-status, .computer-header, .computer-footer, .terminal-footer { display:flex; align-items:center; }
+.brand { gap:10px; font-weight:800; letter-spacing:3px; font-size:12px; padding-top:6px; }
+.wolf-mark { width:31px; height:31px; display:grid; place-items:center; background:#b1f1ed; color:#10191d; border-radius:8px; font-size:17px; font-weight:900; }
+.stats { gap:10px; }
+.stat { min-width:94px; padding:10px 14px; gap:5px; flex-direction:column; align-items:flex-start; background:#0c121bc9; border:1px solid #34414c9c; border-radius:9px; }
+.stat span, .eyebrow, .sidebar-title, .mission-step-label { color:var(--muted); font-size:9px; font-weight:700; letter-spacing:1.8px; }
+.stat strong { font-size:17px; font-weight:650; }
+#objective { width:220px; padding-top:7px; display:flex; flex-direction:column; gap:8px; text-align:right; }
+#objective strong { font-size:13px; font-weight:500; }
+#room-footer { position:absolute; bottom:22px; left:50%; transform:translateX(-50%); display:flex; gap:20px; align-items:center; padding:12px 18px; background:#080b10c9; border:1px solid #36414c91; border-radius:9px; color:var(--cyan); font:11px Consolas, monospace; white-space:nowrap; z-index:2; }
+#room-footer small { color:var(--muted); font-size:9px; margin-left:3px; }
+.interaction-hint { position:absolute; z-index:3; left:50%; bottom:95px; transform:translateX(-50%); display:flex; align-items:center; gap:10px; padding:10px 15px; background:#101720e8; border:1px solid #526471; border-radius:8px; font-size:12px; box-shadow:0 8px 30px #0006; }
+kbd { border:1px solid #7ca9ae; border-radius:4px; padding:4px 7px; color:var(--cyan); font:12px Consolas, monospace; }
+.hidden { display:none !important; }
+.computer-view { position:absolute; inset:0; z-index:10; background:#080c11; display:flex; flex-direction:column; padding:0 26px; }
+.computer-header { height:60px; flex-shrink:0; gap:24px; border-bottom:1px solid var(--line); }
+.computer-brand { gap:10px; font-size:12px; font-weight:800; letter-spacing:1.7px; }
+.terminal-dot, .status-dot { display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--green); box-shadow:0 0 10px #a1e8ac88; }
+.muted { color:var(--muted); font-weight:400; }
+.computer-status { margin-left:auto; gap:9px; color:var(--muted); font-size:9px; letter-spacing:1.4px; }
+.close-button { border:1px solid var(--line); background:#121a23; color:var(--text); border-radius:6px; padding:9px 12px; font-size:10px; }
+.close-button:hover { border-color:var(--cyan); }
+.computer-layout { flex:1; min-height:0; display:grid; grid-template-columns:190px minmax(0,1fr) 245px; gap:18px; padding:20px 0; }
+.computer-sidebar, .mission-panel { min-width:0; padding:15px; background:#0d131b; border:1px solid #202d39; border-radius:8px; }
+.sidebar-title { margin-bottom:20px; }
+.sidebar-item { padding:12px 10px; margin-bottom:6px; border-radius:5px; color:#93a4b4; font-size:11px; }
+.sidebar-item.active { background:#173039; color:var(--cyan); border-left:2px solid var(--cyan); }
+.sidebar-note { margin-top:25px; font-size:10px; line-height:1.8; color:#6f8090; }
+.terminal-window { display:flex; flex-direction:column; min-width:0; min-height:0; background:#080d11; border:1px solid #263842; border-radius:8px; overflow:hidden; }
+.terminal-titlebar { height:38px; flex-shrink:0; display:flex; align-items:center; justify-content:space-between; padding:0 14px; border-bottom:1px solid #202c34; background:#101820; color:#aab8c5; font:11px Consolas, monospace; }
+.window-dots { display:flex; gap:5px; }
+.window-dots i { width:7px; height:7px; background:#43505b; border-radius:50%; }
+.terminal-output { flex:1; min-height:0; overflow-y:auto; padding:20px; color:#b4c7c0; font:12px/1.9 Consolas, "Courier New", monospace; white-space:pre-wrap; overflow-wrap:anywhere; }
+.terminal-line { margin:0 0 5px; }
+.terminal-line.system { color:#8eabb4; }
+.terminal-line.success { color:var(--green); }
+.terminal-line.error { color:var(--danger); }
+.terminal-line.command { color:#e6f1ed; }
+#terminal-form { display:flex; gap:10px; align-items:center; padding:13px 20px; border-top:1px solid #202c34; font:12px Consolas, monospace; }
+.terminal-prompt { flex-shrink:0; color:var(--green); }
+#terminal-input { min-width:0; flex:1; outline:none; border:0; background:transparent; color:#e6f1ed; caret-color:var(--cyan); font:inherit; }
+.terminal-footer { height:28px; flex-shrink:0; justify-content:space-between; padding:0 13px; border-top:1px solid #202c34; color:#627b81; font:9px Consolas, monospace; letter-spacing:.8px; }
+.mission-number { color:var(--muted); font:10px Consolas, monospace; }
+.mission-number strong { color:var(--cyan); font-size:14px; }
+.mission-panel h2 { margin:12px 0 8px; font-size:18px; font-weight:600; }
+.mission-panel p { color:#8999a8; font-size:11px; line-height:1.7; }
+.mission-step-label { margin-top:26px; }
+.mission-instruction { margin-top:10px; padding:12px; border:1px solid #283e43; background:#102024; border-radius:6px; color:#b8f1df; font:11px/1.8 Consolas, monospace; overflow-wrap:anywhere; }
+.progress-track { height:3px; background:#24323b; margin-top:19px; border-radius:5px; overflow:hidden; }
+#mission-progress { height:100%; width:0; background:var(--cyan); transition:width .2s ease; }
+.mission-step-counter { margin-top:9px; color:var(--muted); font:10px Consolas, monospace; }
+.mistake-warning { margin-top:28px; padding:12px 0; display:flex; justify-content:space-between; gap:8px; border-top:1px solid var(--line); color:var(--muted); font-size:9px; letter-spacing:1px; }
+.mistake-warning strong { color:var(--danger); font:12px Consolas, monospace; }
+.mission-tip { margin-top:10px; color:#748594; font-size:10px; line-height:1.8; }
+.computer-footer { height:35px; flex-shrink:0; justify-content:space-between; border-top:1px solid var(--line); color:#8c9ba9; font:9px Consolas, monospace; letter-spacing:.8px; }
+.message-modal { position:absolute; inset:0; z-index:30; display:grid; place-items:center; background:#030609c9; backdrop-filter:blur(6px); }
+.modal-card { width:min(420px, calc(100vw - 36px)); padding:30px; border:1px solid #354652; border-radius:12px; background:#101720; box-shadow:0 25px 100px #0009; }
+.modal-card h1 { margin:14px 0; font-size:26px; }
+.modal-card p { color:#9eacb9; font-size:13px; line-height:1.8; }
+.modal-card button { margin-top:18px; width:100%; padding:13px; border:0; border-radius:6px; background:#b1f1ed; color:#101719; font-size:11px; font-weight:800; letter-spacing:1px; }
+@media (max-width:1050px) {
+  #hud { padding:15px; } .brand { letter-spacing:1px; } .computer-view { padding:0 12px; }
+  .computer-layout { grid-template-columns:145px minmax(0,1fr); } .mission-panel { display:none; }
+  .stats { gap:5px; } .stat { min-width:75px; padding:8px; } #objective { width:145px; }
+}
+@media (max-width:650px) {
+  #hud { flex-wrap:wrap; } #objective { display:none; }
+  .computer-layout { grid-template-columns:minmax(0,1fr); } .computer-sidebar { display:none; }
+  .computer-status { display:none; } #room-footer { gap:9px; font-size:10px; } #room-footer small { display:none; }
+}
+
+.mission-instruction { user-select: none; -webkit-user-select: none; -moz-user-select: none; }
+
+  </style>
+</head>
+<body>
+<div id="world">
+  <canvas id="game-canvas"></canvas>
+
+  <div id="hud">
+    <div class="brand"><div class="wolf-mark">W</div> WOLF HACKER</div>
+    <div class="stats">
+      <div class="stat"><span>TIỀN</span><strong id="moneyVal">$100</strong></div>
+      <div class="stat"><span>NGÀY</span><strong id="dayVal">1</strong></div>
+      <div class="stat"><span>LỖI</span><strong id="mistakeVal">0/3</strong></div>
+    </div>
+    <div id="objective">
+      <span class="eyebrow">NHIỆM VỤ</span>
+      <strong id="objectiveText">Đi tới bàn máy tính, bấm E để bắt đầu hack</strong>
+    </div>
+  </div>
+
+  <div id="room-footer">
+    <span>WASD <small>DI CHUYỂN</small></span>
+    <span>E <small>TƯƠNG TÁC</small></span>
+  </div>
+
+  <div class="interaction-hint hidden" id="interactPrompt">
+    <kbd>E</kbd> <span id="interactAction">...</span>
+  </div>
+
+  <div class="computer-view hidden" id="computerView">
+    <div class="computer-header">
+      <div class="computer-brand"><span class="terminal-dot"></span> WOLF OS TERMINAL</div>
+      <div class="computer-status"><span class="status-dot"></span> ONLINE — <span id="connStatus">ĐANG KẾT NỐI</span></div>
+      <button class="close-button" id="closeBtn">✕ THOÁT</button>
+    </div>
+    <div class="computer-layout">
+      <div class="computer-sidebar">
+        <div class="sidebar-title">HỆ THỐNG</div>
+        <div class="sidebar-item active">Terminal</div>
+        <div class="sidebar-item">Mạng</div>
+        <div class="sidebar-item">Tệp tin</div>
+        <div class="sidebar-note">Kali GNU/Linux<br/>wolfhacker@den:~</div>
+      </div>
+      <div class="terminal-window">
+        <div class="terminal-titlebar">
+          <span>bash — wolfhacker</span>
+          <div class="window-dots"><i></i><i></i><i></i></div>
+        </div>
+        <div class="terminal-output" id="terminalOutput"></div>
+        <form id="terminal-form">
+          <span class="terminal-prompt">root@wolfhacker:~#</span>
+          <input id="terminal-input" autocomplete="off" spellcheck="false" />
+        </form>
+        <div class="terminal-footer"><span>UTF-8</span><span id="cmdCount">0/10</span></div>
+      </div>
+      <div class="mission-panel">
+        <div class="mission-number">NHIỆM VỤ <strong id="dayLabel">NGÀY 1</strong></div>
+        <h2>Thâm nhập hệ thống</h2>
+        <p>Gõ đúng lệnh được yêu cầu để tiếp tục xâm nhập. Sai 3 lần sẽ bị phát hiện.</p>
+        <div class="mission-step-label">GÕ LỆNH SAU</div>
+        <div class="mission-instruction" id="missionInstruction">...</div>
+        <div class="progress-track"><div id="mission-progress"></div></div>
+        <div class="mission-step-counter" id="stepCounter">Bước 0/10</div>
+        <div class="mistake-warning"><span>CẢNH BÁO LỖI</span><strong id="mistakeWarn">0/3</strong></div>
+        <div class="mission-tip" id="missionTip">Mẹo: gõ chính xác, phân biệt hoa thường.</div>
+      </div>
+    </div>
+    <div class="computer-footer"><span>WOLF HACKER OS v0.3</span><span id="footerTime"></span></div>
+  </div>
+
+  <div class="message-modal hidden" id="messageModal">
+    <div class="modal-card">
+      <span class="eyebrow" id="modalEyebrow">THÔNG BÁO</span>
+      <h1 id="modalTitle">...</h1>
+      <p id="modalText">...</p>
+      <button id="modalBtn">TIẾP TỤC</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js";
+
+const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById("game-canvas"), antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x15121e);
+scene.fog = new THREE.Fog(0x15121e, 14, 30);
+const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 100);
+
+scene.add(new THREE.HemisphereLight(0xb79dff, 0x2a1f3a, 1.6));
+const fillLight = new THREE.DirectionalLight(0xffffff, 1.2);
+fillLight.position.set(2, 5, 3);
+fillLight.castShadow = true;
+scene.add(fillLight);
+scene.add(new THREE.AmbientLight(0x6a5a8a, 0.9));
+
+const ROOM_W = 9, ROOM_D = 7, ROOM_H = 3.2;
+const BOUND_X = ROOM_W / 2 - 0.6;
+const BOUND_Z = ROOM_D / 2 - 0.6;
+
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(ROOM_W, ROOM_D), new THREE.MeshStandardMaterial({ color: 0x1e1b2a, roughness: 0.8 }));
+floor.rotation.x = -Math.PI / 2;
+floor.receiveShadow = true;
+scene.add(floor);
+
+const rug = new THREE.Mesh(new THREE.CircleGeometry(1.6, 32), new THREE.MeshStandardMaterial({ color: 0x3a2050, roughness: 0.95 }));
+rug.rotation.x = -Math.PI / 2;
+rug.position.set(0.3, 0.005, -0.5);
+scene.add(rug);
+
+const wallMat = new THREE.MeshStandardMaterial({ color: 0x241f35, roughness: 1, side: THREE.DoubleSide });
+const backWall = new THREE.Mesh(new THREE.BoxGeometry(ROOM_W, ROOM_H, 0.15), wallMat);
+backWall.position.set(0, ROOM_H / 2, -ROOM_D / 2);
+backWall.receiveShadow = true;
+scene.add(backWall);
+const sideWall = new THREE.Mesh(new THREE.BoxGeometry(0.15, ROOM_H, ROOM_D), wallMat);
+sideWall.position.set(-ROOM_W / 2, ROOM_H / 2, 0);
+sideWall.receiveShadow = true;
+scene.add(sideWall);
+const sideWall2 = new THREE.Mesh(new THREE.BoxGeometry(0.15, ROOM_H, ROOM_D), wallMat);
+sideWall2.position.set(ROOM_W / 2, ROOM_H / 2, 0);
+scene.add(sideWall2);
+
+const windowFrame = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.4, 0.1), new THREE.MeshStandardMaterial({ color: 0x100e18 }));
+windowFrame.position.set(-1.5, 2.1, -ROOM_D / 2 + 0.08);
+scene.add(windowFrame);
+const windowGlass = new THREE.Mesh(new THREE.PlaneGeometry(1, 1.2), new THREE.MeshStandardMaterial({ color: 0x3a2f6a, emissive: 0x4a3a8a, emissiveIntensity: 0.6 }));
+windowGlass.position.set(-1.5, 2.1, -ROOM_D / 2 + 0.14);
+scene.add(windowGlass);
+const moonLight = new THREE.PointLight(0x8a6aff, 0.6, 5, 2);
+moonLight.position.set(-1.5, 2.1, -ROOM_D / 2 + 1);
+scene.add(moonLight);
+
+const poster = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 1.2), new THREE.MeshStandardMaterial({ color: 0x5a2f6f, roughness: 0.9, emissive: 0x3a1a4a, emissiveIntensity: 0.2 }));
+poster.position.set(1.8, 2.0, -ROOM_D / 2 + 0.09);
+scene.add(poster);
+
+const shelfMat = new THREE.MeshStandardMaterial({ color: 0x2a2438, roughness: 0.8 });
+[0.9, 1.5, 2.1].forEach((y) => {
+  const plank = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.05, 0.22), shelfMat);
+  plank.position.set(-ROOM_W / 2 + 0.65, y, -1.3);
+  plank.castShadow = true;
+  scene.add(plank);
+  for (let i = 0; i < 4; i++) {
+    const book = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.2, 0.18), new THREE.MeshStandardMaterial({ color: [0x7a4a9a, 0x4a6a9a, 0x9a4a6a, 0x5a9a7a][i % 4] }));
+    book.position.set(-ROOM_W / 2 + 0.3 + i * 0.09, y + 0.12, -1.3);
+    book.castShadow = true;
+    scene.add(book);
+  }
+});
+
+const BED_POS = new THREE.Vector3(-3.1, 0, -2.2);
+const bedGroup = new THREE.Group();
+const bedFrame = new THREE.Mesh(new THREE.BoxGeometry(2, 0.35, 1.3), new THREE.MeshStandardMaterial({ color: 0x3a2f4a, roughness: 0.75 }));
+bedFrame.position.y = 0.18; bedFrame.castShadow = true; bedFrame.receiveShadow = true;
+bedGroup.add(bedFrame);
+const headboard = new THREE.Mesh(new THREE.BoxGeometry(2, 0.6, 0.1), new THREE.MeshStandardMaterial({ color: 0x2e2640, roughness: 0.8 }));
+headboard.position.set(0, 0.5, -0.65);
+headboard.castShadow = true;
+bedGroup.add(headboard);
+const mattress = new THREE.Mesh(new THREE.BoxGeometry(1.85, 0.18, 1.15), new THREE.MeshStandardMaterial({ color: 0xcfc8da, roughness: 0.6 }));
+mattress.position.y = 0.4; mattress.castShadow = true;
+bedGroup.add(mattress);
+const blanket = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.1, 1.1), new THREE.MeshStandardMaterial({ color: 0x5a3a8a, roughness: 0.6 }));
+blanket.position.set(0.4, 0.52, 0);
+blanket.castShadow = true;
+bedGroup.add(blanket);
+const pillow = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.13, 0.5), new THREE.MeshStandardMaterial({ color: 0xe8e2f0 }));
+pillow.position.set(-0.68, 0.56, 0);
+bedGroup.add(pillow);
+bedGroup.position.copy(BED_POS);
+scene.add(bedGroup);
+
+const nightstand = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.4), new THREE.MeshStandardMaterial({ color: 0x241e30, roughness: 0.8 }));
+nightstand.position.set(BED_POS.x - 1.3, 0.25, BED_POS.z + 0.1);
+nightstand.castShadow = true;
+scene.add(nightstand);
+const lampShade = new THREE.Mesh(new THREE.ConeGeometry(0.13, 0.18, 10, 1, true), new THREE.MeshStandardMaterial({ color: 0xc084fc, emissive: 0xa855f7, emissiveIntensity: 1.1, side: THREE.DoubleSide }));
+lampShade.position.set(nightstand.position.x, 0.68, nightstand.position.z);
+scene.add(lampShade);
+const lampLight = new THREE.PointLight(0xa855f7, 1.6, 4.5, 2);
+lampLight.position.copy(lampShade.position);
+lampLight.position.y = 0.65;
+scene.add(lampLight);
+
+const routerPos = new THREE.Vector3(BED_POS.x - 1.3, 1.5, -ROOM_D / 2 + 0.1);
+const router = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.22, 0.06), new THREE.MeshStandardMaterial({ color: 0x1a1824 }));
+router.position.copy(routerPos);
+scene.add(router);
+const routerLight = new THREE.Mesh(new THREE.SphereGeometry(0.015, 8, 8), new THREE.MeshStandardMaterial({ color: 0x66ffaa, emissive: 0x66ffaa, emissiveIntensity: 2 }));
+routerLight.position.set(routerPos.x, routerPos.y - 0.05, routerPos.z + 0.04);
+scene.add(routerLight);
+const routerPort = new THREE.Vector3(routerPos.x - 0.1, routerPos.y - 0.08, routerPos.z + 0.03);
+
+const DESK_POS = new THREE.Vector3(2.9, 0, -2.3);
+const deskTop = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.06, 0.75), new THREE.MeshStandardMaterial({ color: 0x241e30, roughness: 0.55 }));
+deskTop.position.set(DESK_POS.x, 0.6, DESK_POS.z);
+deskTop.castShadow = true; deskTop.receiveShadow = true;
+scene.add(deskTop);
+[[-0.7, -0.32], [0.7, -0.32], [-0.7, 0.32], [0.7, 0.32]].forEach(([dx, dz]) => {
+  const leg = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.6, 0.05), new THREE.MeshStandardMaterial({ color: 0x15111c }));
+  leg.position.set(DESK_POS.x + dx, 0.3, DESK_POS.z + dz);
+  leg.castShadow = true;
+  scene.add(leg);
+});
+const monitorFrame = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.42, 0.04), new THREE.MeshStandardMaterial({ color: 0x100e18 }));
+monitorFrame.position.set(DESK_POS.x, 0.95, DESK_POS.z - 0.25);
+scene.add(monitorFrame);
+const monitorScreen = new THREE.Mesh(new THREE.PlaneGeometry(0.56, 0.36), new THREE.MeshStandardMaterial({ color: 0xc084fc, emissive: 0xa855f7, emissiveIntensity: 2 }));
+monitorScreen.position.set(DESK_POS.x, 0.95, DESK_POS.z - 0.225);
+scene.add(monitorScreen);
+const monitorLight = new THREE.PointLight(0xa855f7, 1.6, 3.5, 2);
+monitorLight.position.copy(monitorScreen.position);
+scene.add(monitorLight);
+const keyboard = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.02, 0.14), new THREE.MeshStandardMaterial({ color: 0x1a1824 }));
+keyboard.position.set(DESK_POS.x - 0.05, 0.64, DESK_POS.z + 0.2);
+scene.add(keyboard);
+const speaker = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.24, 0.15), new THREE.MeshStandardMaterial({ color: 0x15111c }));
+speaker.position.set(DESK_POS.x + 0.75, 0.72, DESK_POS.z);
+speaker.castShadow = true;
+scene.add(speaker);
+
+const caseMat = new THREE.MeshStandardMaterial({ color: 0x18141f, roughness: 0.45, metalness: 0.3 });
+const pcCase = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.55, 0.5), caseMat);
+pcCase.position.set(DESK_POS.x - 0.65, 0.275, DESK_POS.z + 0.1);
+pcCase.castShadow = true;
+scene.add(pcCase);
+const caseGlow = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.4, 0.02), new THREE.MeshStandardMaterial({ color: 0xa855f7, emissive: 0xa855f7, emissiveIntensity: 2 }));
+caseGlow.position.set(DESK_POS.x - 0.65 + 0.14, 0.3, DESK_POS.z + 0.1);
+scene.add(caseGlow);
+const casePort = new THREE.Vector3(DESK_POS.x - 0.65 - 0.14, 0.15, DESK_POS.z + 0.1 + 0.2);
+
+const cableCurve = new THREE.CatmullRomCurve3([
+  casePort.clone(),
+  new THREE.Vector3((casePort.x + routerPort.x) / 2, 0.04, (casePort.z + routerPort.z) / 2 - 0.4),
+  routerPort.clone()
+]);
+const cableTube = new THREE.Mesh(new THREE.TubeGeometry(cableCurve, 24, 0.012, 6, false), new THREE.MeshStandardMaterial({ color: 0x0a0a0a }));
+scene.add(cableTube);
+
+const chairSeat = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.06, 16), new THREE.MeshStandardMaterial({ color: 0x1e1a28 }));
+chairSeat.position.set(DESK_POS.x, 0.42, DESK_POS.z + 0.65);
+chairSeat.castShadow = true;
+scene.add(chairSeat);
+const chairBack = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.05), new THREE.MeshStandardMaterial({ color: 0x1e1a28 }));
+chairBack.position.set(DESK_POS.x, 0.68, DESK_POS.z + 0.85);
+chairBack.castShadow = true;
+scene.add(chairBack);
+const chairPole = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.35, 8), new THREE.MeshStandardMaterial({ color: 0x0f0d16 }));
+chairPole.position.set(DESK_POS.x, 0.22, DESK_POS.z + 0.65);
+scene.add(chairPole);
+
+// ==== nhan vat soi CHIBI - khong duoi, dau to, than nho trong ====
+const HOODIE = 0x1c1828;
+const HOODIE_TRIM = 0x8a5fc0;
+const FUR = 0x7d7e8c;
+const FUR_LIGHT = 0xf0eef5;
+const NEON = 0xb060ff;
+const EYE_DARK = 0x2a2530;
+
+function smoothMat(color, opts = {}) { return new THREE.MeshStandardMaterial({ color, roughness: 0.4, metalness: 0.03, ...opts }); }
+
+const player = new THREE.Group();
+
+// than nho, tron, boc hoodie
+const body = new THREE.Mesh(new THREE.SphereGeometry(0.22, 24, 24), smoothMat(HOODIE, { emissive: 0x1a0f28, emissiveIntensity: 0.12 }));
+body.scale.set(1, 0.9, 1);
+body.position.y = 0.26;
+body.castShadow = true;
+player.add(body);
+
+const bellyPatch = new THREE.Mesh(new THREE.SphereGeometry(0.14, 20, 20), smoothMat(FUR_LIGHT));
+bellyPatch.position.set(0, 0.2, 0.15);
+bellyPatch.scale.set(0.85, 0.75, 0.5);
+player.add(bellyPatch);
+
+const hemTorus = new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.018, 10, 24), smoothMat(HOODIE_TRIM, { emissive: NEON, emissiveIntensity: 0.4 }));
+hemTorus.position.y = 0.1; hemTorus.rotation.x = Math.PI / 2;
+player.add(hemTorus);
+
+// chan ngan cun cun
+const legGeo = new THREE.CapsuleGeometry(0.075, 0.1, 8, 14);
+const legMat = smoothMat(FUR);
+const legL = new THREE.Mesh(legGeo, legMat); legL.position.set(-0.11, 0.08, 0.02); legL.castShadow = true; player.add(legL);
+const legR = legL.clone(); legR.position.x = 0.11; player.add(legR);
+const pawGeo = new THREE.SphereGeometry(0.075, 14, 14);
+const pawMat = smoothMat(FUR_LIGHT);
+const pawL = new THREE.Mesh(pawGeo, pawMat); pawL.position.set(-0.11, 0.02, 0.04); pawL.scale.set(1, 0.6, 1.1); player.add(pawL);
+const pawR = pawL.clone(); pawR.position.x = 0.11; player.add(pawR);
+
+// tay ngan
+const armGeo = new THREE.CapsuleGeometry(0.06, 0.1, 8, 14);
+const armMat = smoothMat(HOODIE);
+const armL = new THREE.Mesh(armGeo, armMat); armL.position.set(-0.24, 0.28, 0.05); armL.rotation.z = 0.4; armL.castShadow = true; player.add(armL);
+const armR = armL.clone(); armR.position.x = 0.24; armR.rotation.z = -0.4; player.add(armR);
+const handMat = smoothMat(FUR_LIGHT);
+const handL = new THREE.Mesh(new THREE.SphereGeometry(0.055, 14, 14), handMat); handL.position.set(-0.29, 0.19, 0.09); player.add(handL);
+const handR = handL.clone(); handR.position.x = 0.29; player.add(handR);
+
+// dau TO, tron, chiem phan lon co the - kieu chibi
+const headGroup = new THREE.Group();
+headGroup.position.set(0, 0.56, 0.03);
+
+const headBase = new THREE.Mesh(new THREE.SphereGeometry(0.33, 32, 32), smoothMat(FUR));
+headBase.scale.set(1, 0.94, 1);
+headGroup.add(headBase);
+
+// mat na mat trang (2-tone nhu hinh sói đồ chơi)
+const faceMask = new THREE.Mesh(new THREE.SphereGeometry(0.3, 28, 28), smoothMat(FUR_LIGHT));
+faceMask.scale.set(0.88, 0.8, 0.7);
+faceMask.position.set(0, -0.07, 0.1);
+headGroup.add(faceMask);
+
+const snout = new THREE.Mesh(new THREE.CapsuleGeometry(0.1, 0.1, 12, 18), smoothMat(FUR_LIGHT));
+snout.rotation.x = Math.PI / 2; snout.position.set(0, -0.12, 0.3);
+headGroup.add(snout);
+
+const nose = new THREE.Mesh(new THREE.SphereGeometry(0.055, 16, 16), new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: 0.2 }));
+nose.scale.set(1, 0.8, 0.9);
+nose.position.set(0, -0.08, 0.45); headGroup.add(nose);
+
+function makeEar(side) {
+  const g = new THREE.Group();
+  const ear = new THREE.Mesh(new THREE.ConeGeometry(0.11, 0.22, 20), smoothMat(FUR));
+  g.add(ear);
+  const inner = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.15, 16), smoothMat(0xd8cfe0));
+  inner.position.set(0, -0.015, 0.025);
+  g.add(inner);
+  g.position.set(side * 0.19, 0.3, -0.03);
+  g.rotation.z = side * -0.15;
+  g.castShadow = true;
+  return g;
+}
+headGroup.add(makeEar(-1), makeEar(1));
+
+// mat to tron, kieu bup be
+const eyeWhiteGeo = new THREE.SphereGeometry(0.075, 20, 20);
+const eyeWhiteMat = smoothMat(0xffffff, { roughness: 0.15 });
+const eyeL = new THREE.Mesh(eyeWhiteGeo, eyeWhiteMat); eyeL.position.set(-0.13, -0.02, 0.26); headGroup.add(eyeL);
+const eyeR = eyeL.clone(); eyeR.position.x = 0.13; headGroup.add(eyeR);
+
+const irisMat = smoothMat(EYE_DARK, { roughness: 0.1 });
+const irisL = new THREE.Mesh(new THREE.SphereGeometry(0.05, 16, 16), irisMat); irisL.position.set(-0.13, -0.02, 0.3); headGroup.add(irisL);
+const irisR = irisL.clone(); irisR.position.x = 0.13; headGroup.add(irisR);
+
+const shineGeo = new THREE.SphereGeometry(0.014, 8, 8);
+const shineMat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffff });
+const shineL = new THREE.Mesh(shineGeo, shineMat); shineL.position.set(-0.11, 0.0, 0.335); headGroup.add(shineL);
+const shineR = shineL.clone(); shineR.position.x = 0.15; headGroup.add(shineR);
+
+headGroup.castShadow = true;
+player.add(headGroup);
+
+// mu hoodie nho, chi phu sau gay (khong trum het dau de lo chibi face)
+const hood = new THREE.Mesh(new THREE.TorusGeometry(0.28, 0.07, 12, 24, Math.PI * 1.1), smoothMat(0x201a2e));
+hood.position.set(0, 0.42, -0.14);
+hood.rotation.x = -0.3;
+hood.rotation.z = Math.PI;
+hood.castShadow = true;
+player.add(hood);
+
+const hoodRim = new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.016, 10, 24, Math.PI * 1.1), smoothMat(HOODIE_TRIM, { emissive: NEON, emissiveIntensity: 0.5 }));
+hoodRim.position.set(0, 0.42, -0.02);
+hoodRim.rotation.x = -0.3;
+hoodRim.rotation.z = Math.PI;
+player.add(hoodRim);
+
+player.userData.bodyParts = { legL, legR, armL, armR };
+scene.add(player);
+
+const camOffset = new THREE.Vector3(0, 3.6, 4.2);
+function updateCamera() {
+  camera.position.copy(player.position).add(camOffset);
+  camera.lookAt(player.position.x, 0.6, player.position.z);
+}
+updateCamera();
+
+const keys = {};
+window.addEventListener("keydown", (e) => { keys[e.key.toLowerCase()] = true; });
+window.addEventListener("keyup", (e) => { keys[e.key.toLowerCase()] = false; });
+
+const speed = 3;
+let atComputer = false;
+let walkT = 0;
+
+function updatePlayer(delta) {
+  const { legL, legR, armL, armR } = player.userData.bodyParts;
+  if (atComputer) return;
+  let dx = 0, dz = 0;
+  if (keys["w"]) dz -= 1;
+  if (keys["s"]) dz += 1;
+  if (keys["a"]) dx -= 1;
+  if (keys["d"]) dx += 1;
+  const moving = dx !== 0 || dz !== 0;
+  if (moving) {
+    const len = Math.hypot(dx, dz);
+    player.position.x += (dx / len) * speed * delta;
+    player.position.z += (dz / len) * speed * delta;
+    player.position.x = Math.max(-BOUND_X, Math.min(BOUND_X, player.position.x));
+    player.position.z = Math.max(-BOUND_Z, Math.min(BOUND_Z, player.position.z));
+    player.rotation.y = Math.atan2(dx, dz);
+    walkT += delta * 11;
+  } else {
+    walkT *= 0.9;
+  }
+  const swing = Math.sin(walkT) * 0.4;
+  legL.rotation.x = swing; legR.rotation.x = -swing;
+  armL.rotation.z = 0.4 + swing * 0.3; armR.rotation.z = -0.4 - swing * 0.3;
+  player.position.y = Math.abs(Math.sin(walkT)) * 0.025;
+}
+
+function distTo(pos) { return player.position.distanceTo(new THREE.Vector3(pos.x, 0, pos.z)); }
+
+// ===================== LENH - 8 tier, trai dai den ngay 1000 (du cho update sau len 2000) =====================
+const TIER1 = ["whoami","pwd","ls","ls -la","cd Desktop","clear","ifconfig","cat notes.txt","mkdir payload","echo test","man ls","history","date","uname -a","hostname","touch file.txt","cp file.txt backup.txt","mv file.txt renamed.txt","rm temp.txt","which python3","echo $PATH","env","id","top","df -h","du -sh","free -m","uptime","cat /etc/os-release","ls /home","find . -name '*.txt'","grep -n 'error' log.txt","head -n 10 notes.txt","tail -n 20 log.txt","wc -l notes.txt","sort names.txt","uniq names.txt","file sample.bin","stat file.txt","realpath file.txt","lscpu","lsblk","lspci","lsusb","ps aux","pstree","vmstat 1 3","who","w","last","ip addr","ip route","ip link","ip neigh","ping -c 4 127.0.0.1","ss -tuln","ss -tunap","traceroute 127.0.0.1","dig example.com","nslookup example.com","apt list --installed","apt search curl","dpkg -l","python3 --version","pip --version","git --version","git status","curl --version","wget --version","gcc --version","tar -tf archive.tar","gzip -l archive.gz","sha256sum file.txt","md5sum file.txt","cut -d: -f1 /etc/passwd","awk '{print $1}' notes.txt","sed -n '1,10p' notes.txt","diff file1.txt file2.txt","xxd file.bin","strings file.bin","nmap --version","nikto -Version","sqlmap --version","gobuster version","john --list=build-info","hashcat --version","aircrack-ng --help","tcpdump --version","tshark --version","msfconsole -v"];
+const TIER2 = ["nmap -sV 192.168.1.1","netstat -tulnp","ssh root@192.168.1.5","chmod +x payload.sh","./payload.sh","sudo su","history | grep ssh","whois target.com","traceroute target.com","scp payload.sh root@192.168.1.5:/tmp","curl -I http://target.com","ping -c 4 192.168.1.1","dig target.com","arp -a","sudo apt update","sudo systemctl status ssh","ps aux | grep python","kill -9 1234","grep -r password /etc","find / -name '*.conf'","nmap -p 1-1000 192.168.1.5","wget http://target.com/file.zip","ssh-keygen -t rsa","iwconfig","route -n","nmap -O 192.168.1.1","nmap -sC 192.168.1.1","nmap -sn 192.168.1.0/24","curl -L https://example.com","wget --spider https://example.com","ip neigh show","ip route show","ss -lntp","sudo lsof -i -P -n","sudo ufw status","sudo iptables -L -n","systemctl list-units --type=service","systemctl --failed","journalctl -n 50","journalctl -u ssh --no-pager","dmesg | tail -n 20","ls -lah /var/log","sudo du -sh /var/log","find ~/ -type f -name '*.log'","grep -in 'error' /var/log/syslog","awk -F: '{print $1}' /etc/passwd","cut -d: -f1 /etc/group","chmod 644 file.txt","chown $USER:$USER file.txt","tar -czf backup.tar.gz ~/Documents","tar -xzf backup.tar.gz","zip -r archive.zip folder/","unzip -l archive.zip","rsync -av source/ destination/","df -Th","du -ah . | sort -rh | head -n 10","free -h","uptime -p","watch -n 2 'free -h'","pgrep -a python","pkill -f test_script.py","nohup python3 app.py > app.log 2>&1 &","jobs -l","bg","fg","export TEST_VAR=hello","printenv TEST_VAR","source ~/.bashrc","bash -n script.sh","python3 -m http.server 8000","python3 -m pip list","git log --oneline -5","git diff","git branch","curl -s https://example.com | head","openssl version","openssl dgst -sha256 file.txt","sha256sum payload.sh","base64 file.txt","base64 -d encoded.txt","nc -vz 127.0.0.1 22","timeout 3 bash -c '</dev/tcp/127.0.0.1/80'","tcpdump -D","tshark -D","nikto -Version","sqlmap --version","gobuster version","searchsploit -h","msfconsole -h","john --list=formats","hashcat -I","aircrack-ng --help","sudo fail2ban-client status","sudo ufw allow 22/tcp","sudo ufw deny 23/tcp","getent hosts example.com","resolvectl status","nmcli device status","nmcli connection show","iw dev","rfkill list","lsmod","modinfo i915","uname -r","apt policy nmap","dpkg -S /usr/bin/python3","sudo apt install curl","sudo apt autoremove"];
+const TIER3 = ["nmap -A 192.168.1.10","nmap -sV -p 22,80,443 192.168.1.10","nmap --reason 127.0.0.1","sudo ss -tulpn","sudo lsof -i :8080","tcpdump -nn -i lo","tshark -r capture.pcap -q","capinfos capture.pcap","wireshark capture.pcap","whatweb http://127.0.0.1","curl -sI http://127.0.0.1","curl -s http://127.0.0.1/robots.txt","gobuster --help","feroxbuster -u http://127.0.0.1","ffuf -w wordlist.txt -u http://127.0.0.1/FUZZ","searchsploit nginx","enum4linux-ng -A 127.0.0.1","smbclient -L 127.0.0.1","rpcclient -U '' 127.0.0.1","openssl s_client -connect example.com:443"];
+const TIER4 = ["readelf -h ./binary","readelf -S ./binary","objdump -d ./binary","objdump -T libc.so.6","nm -C ./binary","ldd ./binary","checksec --file=./binary","gdb -q ./binary","strace -f -o trace.log ./binary","ltrace -o calls.log ./binary","binwalk firmware.bin","binwalk -e firmware.bin","xxd -l 512 firmware.bin","hexdump -C firmware.bin | head","strings -n 8 firmware.bin","radare2 -A ./binary","rabin2 -I ./binary","r2 -d ./binary","patchelf --print-needed ./binary","sudo getcap -r / 2>/dev/null"];
+const TIER5 = ["nuclei -u http://127.0.0.1","httpx -u https://example.com","katana -u https://example.com -d 1","testssl.sh https://example.com","sslyze example.com","sslscan example.com","whatweb https://example.com","nikto -h http://127.0.0.1","dirsearch -u http://127.0.0.1","wpscan --url http://127.0.0.1","zaproxy -cmd -quickurl http://127.0.0.1","burpsuite","mitmproxy","mitmdump -w traffic.mitm","bettercap -h","kismet --version","airmon-ng","iw dev","nmcli device wifi list","openssl s_client -connect example.com:443"];
+const TIER6 = ["sudo lynis audit system","sudo rkhunter --check --sk","sudo chkrootkit","sudo debsums -s","sudo aide --check","sudo journalctl --verify","sudo ausearch -m USER_LOGIN","sudo aureport --auth","sudo fail2ban-client status","sudo aa-status","sudo apparmor_status","sudo nft list ruleset","sudo ufw status verbose","sudo lastb","last -ai","sudo lsof +L1","sudo find /tmp -type f -mtime -1","sudo find /var/tmp -type f -mtime -1","sudo systemctl --failed","sudo systemd-analyze security"];
+const TIER7 = ["impacket-smbclient -h","impacket-GetNPUsers -h","impacket-GetUserSPNs -h","impacket-secretsdump -h","evil-winrm --help","bloodhound-python -h","netexec --help","proxychains4 -h","socat -V","ngrok version","ldapsearch -x -H ldap://127.0.0.1 -s base","rpcclient -U '' 127.0.0.1","smbclient -L 127.0.0.1","ssh -G localhost","ssh -Q cipher","openssl list -cipher-algorithms","openssl list -providers","Get-Process","Get-Service","Get-NetTCPConnection"];
+const TIER8 = ["uname -a","cat /proc/version","cat /proc/cmdline","cat /proc/sys/kernel/tainted","lsmod","modinfo i915","modinfo nvidia","sudo dmesg --level=err,warn","journalctl -k -b","sysctl kernel.kptr_restrict","sysctl kernel.dmesg_restrict","sysctl kernel.unprivileged_bpf_disabled","readelf -h ./binary","readelf -d ./binary","objdump -p ./binary","checksec --file=./binary","binwalk firmware.bin","binwalk -E firmware.bin","strings -n 8 firmware.bin","sha256sum firmware.bin"];
+const ALL_TIERS = [TIER1, TIER2, TIER3, TIER4, TIER5, TIER6, TIER7, TIER8];
+
+const MAX_DAY = 1000; // update thang sau se tang len 2000
+const TIER_SPAN = 250; // 2000 / 8 tier
+
+function getUnlockedTierCount(day) {
+  return Math.min(8, Math.floor((day - 1) / TIER_SPAN) + 1);
+}
+function shuffle(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+function buildDayCommands(day) {
+  const tierCount = getUnlockedTierCount(day);
+  let pool = [];
+  for (let i = 0; i < tierCount; i++) { for (let w = 0; w <= i; w++) pool.push(...ALL_TIERS[i]); }
+  pool = shuffle(pool);
+  const chosen = [];
+  const used = new Set();
+  for (const cmd of pool) {
+    if (!used.has(cmd)) { used.add(cmd); chosen.push(cmd); if (chosen.length === 10) break; }
+  }
+  while (chosen.length < 10) chosen.push(pool[Math.floor(Math.random() * pool.length)]);
+  return chosen;
+}
+function normalizeCmd(s) { return s.trim().replace(/\s+/g, " "); }
+
+const state = { money: 100, day: 1, mistakes: 0, stepIndex: 0, commands: buildDayCommands(1), hackDoneToday: false, sleepTimer: null, hasWon: false };
+
+function saveState() {
+  try {
+    localStorage.setItem("wolfhacker_save", JSON.stringify({
+      money: state.money, day: state.day, mistakes: state.mistakes,
+      stepIndex: state.stepIndex, commands: state.commands,
+      hackDoneToday: state.hackDoneToday, hasWon: state.hasWon
+    }));
+  } catch (e) {}
+}
+function loadState() {
+  try {
+    const raw = localStorage.getItem("wolfhacker_save");
+    if (raw) {
+      const saved = JSON.parse(raw);
+      Object.assign(state, saved);
+    }
+  } catch (e) {}
+}
+loadState();
+
+const el = (id) => document.getElementById(id);
+const moneyVal = el("moneyVal"), dayVal = el("dayVal"), mistakeVal = el("mistakeVal");
+const objectiveText = el("objectiveText");
+const interactPrompt = el("interactPrompt"), interactAction = el("interactAction");
+const computerView = el("computerView"), closeBtn = el("closeBtn");
+const terminalOutput = el("terminalOutput"), terminalForm = el("terminal-form"), terminalInput = el("terminal-input");
+const cmdCount = el("cmdCount"), dayLabel = el("dayLabel"), missionInstruction = el("missionInstruction");
+const missionProgress = el("mission-progress"), stepCounter = el("stepCounter"), mistakeWarn = el("mistakeWarn");
+const messageModal = el("messageModal"), modalEyebrow = el("modalEyebrow"), modalTitle = el("modalTitle"), modalText = el("modalText"), modalBtn = el("modalBtn");
+
+terminalInput.addEventListener("paste", (e) => e.preventDefault());
+terminalInput.addEventListener("contextmenu", (e) => e.preventDefault());
+terminalInput.addEventListener("keydown", (e) => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "v") e.preventDefault(); });
+missionInstruction.addEventListener("copy", (e) => e.preventDefault());
+missionInstruction.addEventListener("contextmenu", (e) => e.preventDefault());
+
+function updateHUD() {
+  moneyVal.textContent = "$" + state.money;
+  dayVal.textContent = state.day;
+  mistakeVal.textContent = state.mistakes + "/3";
+  saveState();
+}
+function termLine(text, cls) {
+  const d = document.createElement("div");
+  d.className = "terminal-line" + (cls ? " " + cls : "");
+  d.textContent = text;
+  terminalOutput.appendChild(d);
+  terminalOutput.scrollTop = terminalOutput.scrollHeight;
+}
+function openMission() {
+  dayLabel.textContent = "NGÀY " + state.day;
+  cmdCount.textContent = state.stepIndex + "/10";
+  stepCounter.textContent = "Bước " + state.stepIndex + "/10";
+  mistakeWarn.textContent = state.mistakes + "/3";
+  missionProgress.style.width = (state.stepIndex / 10 * 100) + "%";
+  missionInstruction.textContent = state.commands[state.stepIndex] || "Đã hoàn thành hôm nay";
+}
+function showModal(eyebrow, title, text, onContinue) {
+  modalEyebrow.textContent = eyebrow;
+  modalTitle.textContent = title;
+  modalText.textContent = text;
+  messageModal.classList.remove("hidden");
+  modalBtn.onclick = () => { messageModal.classList.add("hidden"); if (onContinue) onContinue(); };
+}
+function gameOver(reason) {
+  clearTimeout(state.sleepTimer);
+  showModal("BỊ PHÁT HIỆN", "GAME OVER", reason, () => {
+    state.money = 100; state.day = 1; state.mistakes = 0; state.stepIndex = 0;
+    state.commands = buildDayCommands(1); state.hackDoneToday = false; state.hasWon = false;
+    updateHUD(); openMission();
+    terminalOutput.innerHTML = "";
+    closeComputer();
+  });
+}
+function openComputer() {
+  atComputer = true;
+  computerView.classList.remove("hidden");
+  interactPrompt.classList.add("hidden");
+  if (terminalOutput.children.length === 0) {
+    termLine("Wolf Hacker Terminal v0.7", "system");
+    termLine("Kali GNU/Linux — đã kết nối", "system");
+  }
+  openMission();
+  terminalInput.focus();
+}
+function closeComputer() { atComputer = false; computerView.classList.add("hidden"); }
+closeBtn.addEventListener("click", closeComputer);
+
+terminalForm.addEventListener("submit", (e) => {
+  e.preventDefault();
+  const typed = terminalInput.value;
+  terminalInput.value = "";
+  if (!typed.trim()) return;
+  termLine("root@wolfhacker:~# " + typed, "command");
+
+  if (state.stepIndex >= 10) { termLine("Đã hoàn thành nhiệm vụ hôm nay. Hãy đi ngủ.", "system"); return; }
+
+  const expected = state.commands[state.stepIndex];
+  if (normalizeCmd(typed) === normalizeCmd(expected)) {
+    state.stepIndex++;
+    termLine("OK", "success");
+    if (state.stepIndex >= 10) {
+      state.hackDoneToday = true;
+      state.money += 100;
+      updateHUD();
+      termLine("=== XÂM NHẬP THÀNH CÔNG (+$100) ===", "success");
+      openMission();
+      if (state.day >= MAX_DAY && !state.hasWon) {
+        state.hasWon = true;
+        showModal("CHIẾN THẮNG", "Mày đã sống sót qua " + MAX_DAY + " ngày!", "Đây là giới hạn hiện tại của game — update tháng sau sẽ mở rộng lên 2000 ngày. Mày vẫn có thể chơi tiếp.", () => {
+          state.sleepTimer = setTimeout(() => { if (state.hackDoneToday) gameOver("Mày kiệt sức vì không chịu nghỉ ngơi."); }, 30000);
+        });
+      } else {
+        showModal("HOÀN THÀNH", "Hack thành công!", "Giờ hãy đi ngủ (bấm E ở giường) trong 30 giây, nếu không sẽ kiệt sức.", () => {
+          state.sleepTimer = setTimeout(() => { if (state.hackDoneToday) gameOver("Mày kiệt sức vì không chịu nghỉ ngơi."); }, 30000);
+        });
+      }
+    } else {
+      openMission();
+    }
+  } else {
+    state.mistakes++;
+    termLine("LỖI: lệnh không đúng (gõ lại chính xác như trên)", "error");
+    updateHUD();
+    openMission();
+    if (state.mistakes >= 3) gameOver("Mày gõ sai lệnh quá 3 lần, hệ thống đã phát hiện ra mày.");
+  }
+});
+
+window.addEventListener("keydown", (e) => {
+  if (e.key.toLowerCase() !== "e" || atComputer) return;
+  if (distTo(DESK_POS) < 2) {
+    openComputer();
+  } else if (distTo(BED_POS) < 1.8) {
+    if (state.hackDoneToday) {
+      clearTimeout(state.sleepTimer);
+      state.day++; state.money -= 30; state.mistakes = 0; state.stepIndex = 0;
+      state.hackDoneToday = false; state.commands = buildDayCommands(state.day);
+      updateHUD(); terminalOutput.innerHTML = "";
+      showModal("NGÀY MỚI", "Ngày " + state.day, "Mày đã nghỉ ngơi xong. Tiền sinh hoạt hôm nay: -$30.");
+    } else {
+      showModal("CHƯA XONG VIỆC", "Chưa hoàn thành nhiệm vụ", "Mày cần hack xong trước đã rồi mới được ngủ qua ngày.");
+    }
+  }
+});
+
+function checkInteraction() {
+  if (atComputer) { interactPrompt.classList.add("hidden"); return; }
+  if (distTo(DESK_POS) < 2) {
+    interactAction.textContent = "vào máy tính";
+    interactPrompt.classList.remove("hidden");
+    objectiveText.textContent = "Bấm E để vào máy tính và hack";
+  } else if (distTo(BED_POS) < 1.8) {
+    interactAction.textContent = "ngủ";
+    interactPrompt.classList.remove("hidden");
+    objectiveText.textContent = state.hackDoneToday ? "Bấm E để ngủ, qua ngày mới" : "Giường ở đây, nhưng chưa xong việc hack hôm nay";
+  } else {
+    interactPrompt.classList.add("hidden");
+    objectiveText.textContent = "Đi tới bàn máy tính, bấm E để bắt đầu hack";
+  }
+}
+
+updateHUD();
+openMission();
+
+const clock = new THREE.Clock();
+function loop() {
+  const delta = clock.getDelta();
+  updatePlayer(delta);
+  updateCamera();
+  checkInteraction();
+  renderer.render(scene, camera);
+  requestAnimationFrame(loop);
+}
+loop();
+
+window.addEventListener("resize", () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+
+
+  </script>
+</body>
+</html>
